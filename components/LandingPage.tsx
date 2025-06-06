@@ -52,7 +52,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
           <div className="max-w-7xl mx-auto">
             
             {/* Interactive Timeline Flow */}
-            <div className={`mb-24 py-16 mt-8 transform transition-all duration-1000 delay-300 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+            <div className={`mb-16 py-16 mt-8 transform transition-all duration-1000 delay-300 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               <h2 className="text-3xl font-bold text-slate-200 mb-16 text-center" style={{
                 filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
               }}>Your Journey with QuiC</h2>
@@ -213,19 +213,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                                   <div className="group relative">
                     {/* Lightning bolt effect - positioned outside button */}
                     <div className="absolute inset-0 pointer-events-none z-10">
-                      <svg className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-[500px] group-hover:translate-x-[150vw] transition-transform duration-1500 ease-out w-12 h-12 text-white opacity-0 group-hover:opacity-100" 
+                      <svg className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-[500px] group-hover:translate-x-[150vw] transition-transform duration-[6ui000ms] ease-out w-12 h-12 text-white opacity-0 group-hover:opacity-100" 
                            fill="currentColor" viewBox="0 0 24 24">
                         <path d="M13 0L0 12h7l-2 12 13-12h-7L13 0z" style={{
                           filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 24px rgba(255, 255, 255, 0.6))'
                         }} />
                       </svg>
-                      {/* Lightning streak trail */}
-                      <div className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-[500px] group-hover:translate-x-[150vw] transition-transform duration-1500 ease-out w-96 h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 group-hover:opacity-100" 
-                           style={{
-                             filter: 'blur(2px)',
-                             animationDelay: '50ms'
-                           }}>
-                      </div>
                     </div>
                     
                     <button
