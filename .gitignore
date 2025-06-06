@@ -40,5 +40,11 @@ config.ts
 api-keys.txt
 secrets.txt
 
+# API key storage scripts (contain sensitive data)
+store-api-key.*
+test-neon-direct.*
+**/store-api-key.*
+**/test-neon-direct.*
+
 # Local Netlify folder
 .netlify
