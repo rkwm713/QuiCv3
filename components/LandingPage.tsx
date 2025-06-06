@@ -213,7 +213,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                                   <div className="group relative">
                     {/* Lightning bolt effect - positioned outside button */}
                     <div className="absolute inset-0 pointer-events-none z-10">
-                      <svg className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-[500px] group-hover:translate-x-[150vw] transition-transform duration-[6ui000ms] ease-out w-12 h-12 text-white opacity-0 group-hover:opacity-100" 
+                      <svg className="absolute top-1/2 left-0 transform -translate-y-1/2 -translate-x-[500px] group-hover:translate-x-[150vw] transition-transform duration-[6000ms] ease-out w-12 h-12 text-white opacity-0 group-hover:opacity-100" 
                            fill="currentColor" viewBox="0 0 24 24">
                         <path d="M13 0L0 12h7l-2 12 13-12h-7L13 0z" style={{
                           filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 1)) drop-shadow(0 0 16px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 24px rgba(255, 255, 255, 0.6))'
