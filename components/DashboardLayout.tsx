@@ -151,7 +151,7 @@ const PinModal: React.FC<{
           <p className="text-slate-300 mb-2">Enter PIN to access AI Analytics:</p>
           <div className="flex items-center space-x-2 text-emerald-400 text-sm mb-4">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1218 0" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1 2 18 0" />
             </svg>
             <span>Secured AI Features</span>
           </div>
@@ -470,7 +470,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     <span>{tab.name}</span>
                     {tab.id === 'analytics' && !isAiUnlocked && (
                       <svg className="w-4 h-4 text-yellow-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1218 0" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1 2 18 0" />
                       </svg>
                     )}
                     {activeTab === tab.id && (

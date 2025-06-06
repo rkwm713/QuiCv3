@@ -11,8 +11,16 @@ const decrypt = (encryptedText) => {
 // Helper function to get API key from Neon database
 const getApiKey = async () => {
   try {
+    // Use NETLIFY_DATABASE_URL instead of NEON_DATABASE_URL
+    const databaseUrl = process.env.NETLIFY_DATABASE_URL || process.env.NEON_DATABASE_URL;
+    
+    if (!databaseUrl) {
+      console.log('No database URL configured, falling back to environment variable');
+      return process.env.GEMINI_API_KEY;
+    }
+    
     // Initialize Neon connection
-    const sql = neon(process.env.NEON_DATABASE_URL);
+    const sql = neon(databaseUrl);
     
     // Query for the API key
     const [keyRecord] = await sql`
@@ -36,6 +44,9 @@ const getApiKey = async () => {
 };
 
 exports.handler = async (event, context) => {
+  // Set function timeout context
+  context.callbackWaitsForEmptyEventLoop = false;
+  
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -63,10 +74,43 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    console.log('Gemini analysis function started');
+    
+    // Parse request body with error handling
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body || '{}');
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Invalid JSON in request body' })
+      };
+    }
+    
+    const { prompt, analysisType } = requestBody;
+    
+    if (!prompt) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Prompt is required' })
+      };
+    }
+
     // Get API key from Neon database (with fallback to env vars)
+    console.log('Retrieving API key...');
     const apiKey = await getApiKey();
     
     if (!apiKey) {
+      console.error('No API key available');
       return {
         statusCode: 500,
         headers: {
@@ -80,29 +124,24 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Parse request body
-    const { prompt, analysisType } = JSON.parse(event.body);
-    
-    if (!prompt) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ error: 'Prompt is required' })
-      };
-    }
-
+    console.log('Initializing Gemini AI...');
     // Initialize Gemini AI
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    // Generate response
-    const result = await model.generateContent(prompt);
+    console.log('Generating content...');
+    // Generate response with timeout protection
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 25000)
+      )
+    ]);
+    
     const response = await result.response;
     const text = response.text();
 
+    console.log('Analysis completed successfully');
     return {
       statusCode: 200,
       headers: {
@@ -120,16 +159,33 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Gemini API Error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Determine appropriate error message
+    let errorMessage = 'Failed to generate analysis';
+    let statusCode = 500;
+    
+    if (error.message.includes('timeout')) {
+      errorMessage = 'Request timeout - analysis took too long';
+      statusCode = 504;
+    } else if (error.message.includes('API key')) {
+      errorMessage = 'Invalid API key configuration';
+      statusCode = 401;
+    } else if (error.message.includes('quota')) {
+      errorMessage = 'API quota exceeded';
+      statusCode = 429;
+    }
     
     return {
-      statusCode: 500,
+      statusCode,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
       },
       body: JSON.stringify({ 
-        error: 'Failed to generate analysis',
-        details: process.env.NODE_ENV === 'development' ? error.message : 'AI service error'
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error.message : 'AI service error',
+        timestamp: new Date().toISOString()
       })
     };
   }

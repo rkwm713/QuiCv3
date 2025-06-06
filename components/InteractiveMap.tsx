@@ -37,24 +37,36 @@ const MapBounds: React.FC<{ poles: ProcessedPole[] }> = ({ poles }) => {
   const map = useMap();
 
   useEffect(() => {
+    if (!map) return; // Safety check for map instance
     if (poles.length === 0) return;
 
     const validPoles = poles.filter(pole => pole.mapCoords);
     if (validPoles.length === 0) return;
 
-    if (validPoles.length === 1) {
-      // For single pole, center the map
-      const pole = validPoles[0];
-      if (pole.mapCoords) {
-        map.setView([pole.mapCoords.lat, pole.mapCoords.lon], 16);
+    // Add a small delay to ensure map is fully initialized
+    const timeoutId = setTimeout(() => {
+      try {
+        if (validPoles.length === 1) {
+          // For single pole, center the map
+          const pole = validPoles[0];
+          if (pole.mapCoords && map.getContainer()) {
+            map.setView([pole.mapCoords.lat, pole.mapCoords.lon], 16);
+          }
+        } else {
+          // For multiple poles, fit bounds
+          const bounds = L.latLngBounds(
+            validPoles.map(pole => [pole.mapCoords!.lat, pole.mapCoords!.lon] as [number, number])
+          );
+          if (map.getContainer()) {
+            map.fitBounds(bounds, { padding: [20, 20] });
+          }
+        }
+      } catch (error) {
+        console.warn('Map bounds adjustment failed:', error);
       }
-    } else {
-      // For multiple poles, fit bounds
-      const bounds = L.latLngBounds(
-        validPoles.map(pole => [pole.mapCoords!.lat, pole.mapCoords!.lon] as [number, number])
-      );
-      map.fitBounds(bounds, { padding: [20, 20] });
-    }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
   }, [poles, map]);
 
   return null;
