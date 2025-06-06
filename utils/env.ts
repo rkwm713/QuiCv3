@@ -12,6 +12,7 @@ export interface EnvironmentConfig {
   encryptionKey?: string;
   netlifyDatabaseUrl?: string;
   storageType: 'blobs' | 'neon' | 'env-only';
+  isServerSide: boolean;
 }
 
 class EnvironmentValidator {
@@ -29,16 +30,24 @@ class EnvironmentValidator {
     return EnvironmentValidator.instance;
   }
 
+  private isServerSideEnvironment(): boolean {
+    // Detect if we're running server-side (Netlify Functions) vs client-side
+    return typeof window === 'undefined' && typeof process !== 'undefined' && !!process.env;
+  }
+
   private loadAndValidateConfig(): EnvironmentConfig {
     const nodeEnv = process.env.NODE_ENV || 'development';
-    const netlifyDatabaseUrl = process.env.NETLIFY_DATABASE_URL;
+    const isServerSide = this.isServerSideEnvironment();
+    const netlifyDatabaseUrl = isServerSide ? process.env.NETLIFY_DATABASE_URL : undefined;
     
-    // Determine storage type based on available configuration
+    // Determine storage type based on available configuration (server-side only)
     let storageType: 'blobs' | 'neon' | 'env-only' = 'env-only';
-    if (netlifyDatabaseUrl) {
-      storageType = 'neon';
-    } else if (process.env.ADMIN_TOKEN && process.env.ENCRYPTION_KEY) {
-      storageType = 'blobs';
+    if (isServerSide) {
+      if (netlifyDatabaseUrl) {
+        storageType = 'neon';
+      } else if (process.env.ADMIN_TOKEN && process.env.ENCRYPTION_KEY) {
+        storageType = 'blobs';
+      }
     }
     
     const config: EnvironmentConfig = {
@@ -47,11 +56,12 @@ class EnvironmentValidator {
       isProduction: nodeEnv === 'production',
       isTest: nodeEnv === 'test',
       apiBaseUrl: this.getApiBaseUrl(nodeEnv),
-      geminiApiKey: process.env.GEMINI_API_KEY,
-      adminToken: process.env.ADMIN_TOKEN,
-      encryptionKey: process.env.ENCRYPTION_KEY,
+      geminiApiKey: isServerSide ? process.env.GEMINI_API_KEY : undefined,
+      adminToken: isServerSide ? process.env.ADMIN_TOKEN : undefined,
+      encryptionKey: isServerSide ? process.env.ENCRYPTION_KEY : undefined,
       netlifyDatabaseUrl,
       storageType,
+      isServerSide,
     };
 
     this.validateConfig(config);
@@ -71,8 +81,8 @@ class EnvironmentValidator {
   private validateConfig(config: EnvironmentConfig): void {
     const errors: string[] = [];
 
-    // Validate required environment variables for production
-    if (config.isProduction) {
+    // Only validate server-side variables if we're actually server-side
+    if (config.isServerSide && config.isProduction) {
       if (!config.adminToken) {
         errors.push('ADMIN_TOKEN is required in production');
       }
@@ -82,8 +92,18 @@ class EnvironmentValidator {
       }
     }
 
-    // Warn about missing optional variables
-    if (!config.geminiApiKey && config.isDevelopment) {
+    // Client-side validation (more permissive)
+    if (!config.isServerSide) {
+      // Only validate what's actually needed on the client-side
+      console.log('🌐 Client-side environment initialized', {
+        nodeEnv: config.nodeEnv,
+        apiBaseUrl: config.apiBaseUrl,
+        isProduction: config.isProduction,
+      });
+    }
+
+    // Warn about missing optional variables (server-side only)
+    if (config.isServerSide && !config.geminiApiKey && config.isDevelopment) {
       console.warn('⚠️  GEMINI_API_KEY not found in environment variables. Using Netlify Blobs fallback.');
     }
 
@@ -94,15 +114,17 @@ class EnvironmentValidator {
     }
 
     // Log successful configuration (without sensitive data)
-    console.log('✅ Environment configuration validated', {
-      nodeEnv: config.nodeEnv,
-      apiBaseUrl: config.apiBaseUrl,
-      storageType: config.storageType,
-      hasGeminiKey: !!config.geminiApiKey,
-      hasAdminToken: !!config.adminToken,
-      hasEncryptionKey: !!config.encryptionKey,
-      hasNetlifyDbUrl: !!config.netlifyDatabaseUrl,
-    });
+    if (config.isServerSide) {
+      console.log('✅ Server-side environment configuration validated', {
+        nodeEnv: config.nodeEnv,
+        apiBaseUrl: config.apiBaseUrl,
+        storageType: config.storageType,
+        hasGeminiKey: !!config.geminiApiKey,
+        hasAdminToken: !!config.adminToken,
+        hasEncryptionKey: !!config.encryptionKey,
+        hasNetlifyDbUrl: !!config.netlifyDatabaseUrl,
+      });
+    }
   }
 
   public getConfig(): EnvironmentConfig {
@@ -110,10 +132,21 @@ class EnvironmentValidator {
   }
 
   public isSecurelyConfigured(): boolean {
+    // Only check if we're server-side, client-side doesn't need these
+    if (!this.config.isServerSide) {
+      return true; // Client-side is always "secure" since it doesn't handle secrets
+    }
     return !!(this.config.adminToken && this.config.encryptionKey);
   }
 
   public validateApiAccess(): void {
+    // Client-side validation should be more permissive
+    if (!this.config.isServerSide) {
+      // Client-side just needs to know the API endpoint
+      return;
+    }
+    
+    // Server-side validation
     if (!this.config.geminiApiKey && this.config.isDevelopment) {
       throw new Error('No Gemini API key available. Please configure GEMINI_API_KEY or set up Netlify Blobs.');
     }
@@ -132,19 +165,29 @@ export const getStorageType = (): 'blobs' | 'neon' | 'env-only' => envConfig.get
 export const isNeonConfigured = (): boolean => !!envConfig.getConfig().netlifyDatabaseUrl;
 export const isBlobsConfigured = (): boolean => envConfig.getConfig().storageType === 'blobs';
 
-// Runtime validation function
+// Runtime validation function (client-side safe)
 export const validateEnvironment = (): void => {
   try {
     envConfig.validateApiAccess();
   } catch (error) {
+    // More permissive for client-side
+    if (!envConfig.getConfig().isServerSide) {
+      console.warn('⚠️ Environment validation warning (client-side):', error);
+      return; // Don't throw on client-side
+    }
     console.error('Environment validation failed:', error);
     throw error;
   }
 };
 
-// Storage-specific validation
+// Storage-specific validation (server-side only)
 export const validateStorageConfig = (): void => {
   const config = envConfig.getConfig();
+  
+  // Only validate storage config server-side
+  if (!config.isServerSide) {
+    return;
+  }
   
   if (config.storageType === 'neon' && !config.netlifyDatabaseUrl) {
     throw new Error('Neon storage selected but NETLIFY_DATABASE_URL not configured');
