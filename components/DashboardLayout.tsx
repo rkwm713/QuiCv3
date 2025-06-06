@@ -3,6 +3,7 @@ import { APP_TITLE } from '../constants';
 import DemoTutorial from './DemoTutorial';
 import AIAnalytics from './AIAnalytics';
 import HeightComparisonTable from './HeightComparisonTable';
+import { CoverSheetTable } from './CoverSheetTable';
 
 interface DashboardLayoutProps {
   dataSourceSection: React.ReactNode;
@@ -19,6 +20,8 @@ interface DashboardLayoutProps {
   // Data props for AI Analytics
   comparisonData?: any;
   poleData?: any[];
+  // Raw SPIDA data for CoverSheet
+  rawSpidaData?: any;
 }
 
 interface Bolt {
@@ -55,6 +58,12 @@ const StatisticsIcon: React.FC = () => (
 const QCIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const CoverSheetIcon: React.FC = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 );
 
@@ -224,8 +233,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   hasDataToExport,
   comparisonData,
   poleData,
+  rawSpidaData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'demo' | 'table' | 'map' | 'analytics' | 'statistics' | 'qc'>('demo');
+  const [activeTab, setActiveTab] = useState<'demo' | 'table' | 'coversheet' | 'map' | 'analytics' | 'statistics' | 'qc'>('demo');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -490,6 +500,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const tabs = [
     { id: 'demo' as const, name: 'Demo & Tutorial', icon: <BookOpenIcon />, description: 'Learn how to use QuiC (always available)' },
     { id: 'table' as const, name: 'Data Table', icon: <TableIcon />, description: 'Detailed comparison results' },
+    { id: 'coversheet' as const, name: 'CoverSheet', icon: <CoverSheetIcon />, description: 'Generate cover sheet from SPIDA data with AI-powered notes' },
     { id: 'map' as const, name: 'Map View', icon: <MapIcon />, description: 'Geographic visualization' },
     { id: 'statistics' as const, name: 'Statistics', icon: <StatisticsIcon />, description: 'Match statistics & insights' },
     { id: 'qc' as const, name: 'Height Comparison', icon: <QCIcon />, description: 'Compare pole heights, wires, and attachments between systems' },
@@ -671,6 +682,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               `}>
                 <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
                   {dataTableSection}
+                </div>
+              </div>
+
+              <div className={`
+                absolute inset-0 transition-all duration-500 transform
+                ${activeTab === 'coversheet' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
+              `}>
+                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                  <CoverSheetTable data={poleData || []} rawSpidaData={rawSpidaData} />
                 </div>
               </div>
 

@@ -666,6 +666,7 @@ const App: React.FC = () => {
           }
         }}
         poleData={processedPoles}
+        rawSpidaData={rawSpidaJson}
       />
       <PoleDetailModal pole={selectedPoleForModal} onClose={handleCloseModal} />
     </>
