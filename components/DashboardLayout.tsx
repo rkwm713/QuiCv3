@@ -337,14 +337,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   ];
 
   return (
-    <div className="min-h-screen animated-gradient-bg">
+    <div className="h-screen animated-gradient-bg flex flex-col">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse-slow" />
         <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '4s' }} />
       </div>
 
-      <div className="relative z-10 p-3 md:p-6 space-y-4">
+      <div className="relative z-10 flex flex-col h-full">
+        {/* Header and Cards - Fixed Height */}
+        <div className="flex-shrink-0 p-3 md:p-6 space-y-4">
         {/* Header */}
         <header className="text-left">
           <div className="flex items-center space-x-4 mb-2">
@@ -443,12 +445,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
 
-        {/* Main Content Area with Tabs */}
-        <div className="w-full max-w-none mx-auto px-4 mt-8">
-          <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-xl shadow-black/20 overflow-hidden">
+        </div>
+
+        {/* Main Content Area with Tabs - Flexible Height */}
+        <div className="flex-1 flex flex-col w-full max-w-none mx-auto px-4 mt-8 min-h-0">
+          <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-xl shadow-black/20 overflow-hidden flex flex-col h-full">
             
             {/* Tab Navigation */}
-            <div className="border-b border-slate-700/50 bg-slate-900/50">
+            <div className="flex-shrink-0 border-b border-slate-700/50 bg-slate-900/50">
               <nav className="flex space-x-8 px-6">
                 {tabs.map((tab) => (
                   <button
@@ -484,15 +488,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
 
             {/* Tab Content */}
-            <div className="relative min-h-[800px]">
+            <div className="relative flex-1 min-h-0">
               <div className={`
                 absolute inset-0 transition-all duration-500 transform
                 ${activeTab === 'demo' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
               `}>
-                <div className="h-full">
-                  <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                    <DemoTutorial />
-                  </div>
+                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                  <DemoTutorial />
                 </div>
               </div>
 
@@ -500,10 +502,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 absolute inset-0 transition-all duration-500 transform
                 ${activeTab === 'table' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
               `}>
-                <div className="h-full">
-                  <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                    {dataTableSection}
-                  </div>
+                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                  {dataTableSection}
                 </div>
               </div>
 
@@ -511,10 +511,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 absolute inset-0 transition-all duration-500 transform
                 ${activeTab === 'map' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
               `}>
-                <div className="h-full">
-                  <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                    {mapSection}
-                  </div>
+                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                  {mapSection}
                 </div>
               </div>
 
@@ -522,8 +520,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 absolute inset-0 transition-all duration-500 transform
                 ${activeTab === 'statistics' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
               `}>
-                <div className="p-6 h-full">
-                  <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                <div className="h-full flex flex-col p-6">
+                  <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
                     <div className="p-6 h-full overflow-auto">
                       {statusSection}
                     </div>
@@ -535,8 +533,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 absolute inset-0 transition-all duration-500 transform
                 ${activeTab === 'analytics' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
               `}>
-                <div className="p-6 h-full">
-                  <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                <div className="h-full flex flex-col p-6">
+                  <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
                     <AIAnalytics 
                       comparisonData={comparisonData} 
                       poleData={poleData} 
@@ -548,8 +546,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
           </div>
         </div>
-
-
       </div>
 
       {showPinModal && (
