@@ -17,15 +17,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
   const animationFrameRef = useRef<number>();
   
   // Lightning animation variables
-  const boltCanvasesRef = useRef<HTMLCanvasElement[]>([]);
   const boltsRef = useRef<Bolt[]>([]);
   const lastFrameRef = useRef<number>(Date.now());
   const flashOpacityRef = useRef<number>(0);
   const lastSparkTimeRef = useRef<number>(0);
-  const borderAnimationTimeRef = useRef<number>(0);
   
   // Animation constants
-  const fps = 60;
   const totalBoltDuration = 0.2;
   const boltFadeDuration = 0.1;
   const boltWidth = 4.0;
@@ -193,104 +190,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
     return canvas;
   };
 
-  const createBorderLightningCanvas = (buttonElement: HTMLElement): HTMLCanvasElement => {
-    const canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const context = canvas.getContext('2d')!;
-    
-    const rect = buttonElement.getBoundingClientRect();
-    const padding = 4; // Distance from button edge
-    
-    // Adjust for border radius (button is rounded)
-    const borderRadius = 50; // Approximate button border radius
-    
-    context.strokeStyle = 'rgba(255, 215, 0, 0.9)';
-    context.lineWidth = 2.5;
-    context.lineCap = 'round';
-    context.shadowColor = 'rgba(255, 215, 0, 0.6)';
-    context.shadowBlur = 8;
-    
-    context.beginPath();
-    
-    // Create points around the button perimeter with rounded corners
-    const left = rect.left - padding;
-    const right = rect.right + padding;
-    const top = rect.top - padding;
-    const bottom = rect.bottom + padding;
-    const width = right - left;
-    const height = bottom - top;
-    
-    // Start from top-left corner (after the curve)
-    let x = left + borderRadius;
-    let y = top;
-    context.moveTo(x, y);
-    
-    // Top edge with lightning wobble
-    const topSegments = Math.floor((width - 2 * borderRadius) / 8);
-    for (let i = 0; i < topSegments; i++) {
-      x += 8;
-      const wobble = (Math.random() - 0.5) * 6;
-      context.lineTo(x, y + wobble);
-    }
-    
-    // Top-right curve
-    x = right - borderRadius;
-    y = top;
-    context.lineTo(x, y);
-    context.quadraticCurveTo(right, top, right, top + borderRadius);
-    
-    // Right edge with lightning wobble
-    x = right;
-    y = top + borderRadius;
-    const rightSegments = Math.floor((height - 2 * borderRadius) / 8);
-    for (let i = 0; i < rightSegments; i++) {
-      y += 8;
-      const wobble = (Math.random() - 0.5) * 6;
-      context.lineTo(x + wobble, y);
-    }
-    
-    // Bottom-right curve
-    x = right;
-    y = bottom - borderRadius;
-    context.lineTo(x, y);
-    context.quadraticCurveTo(right, bottom, right - borderRadius, bottom);
-    
-    // Bottom edge with lightning wobble
-    x = right - borderRadius;
-    y = bottom;
-    const bottomSegments = Math.floor((width - 2 * borderRadius) / 8);
-    for (let i = 0; i < bottomSegments; i++) {
-      x -= 8;
-      const wobble = (Math.random() - 0.5) * 6;
-      context.lineTo(x, y + wobble);
-    }
-    
-    // Bottom-left curve
-    x = left + borderRadius;
-    y = bottom;
-    context.lineTo(x, y);
-    context.quadraticCurveTo(left, bottom, left, bottom - borderRadius);
-    
-    // Left edge with lightning wobble
-    x = left;
-    y = bottom - borderRadius;
-    const leftSegments = Math.floor((height - 2 * borderRadius) / 8);
-    for (let i = 0; i < leftSegments; i++) {
-      y -= 8;
-      const wobble = (Math.random() - 0.5) * 6;
-      context.lineTo(x + wobble, y);
-    }
-    
-    // Top-left curve (close the path)
-    x = left;
-    y = top + borderRadius;
-    context.lineTo(x, y);
-    context.quadraticCurveTo(left, top, left + borderRadius, top);
-    
-    context.stroke();
-    return canvas;
-  };
+
 
   const createAnimatedBorderLightning = (time: number): HTMLCanvasElement | null => {
     if (!buttonRef.current || !showCallToAction) return null;
