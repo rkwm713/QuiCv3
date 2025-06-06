@@ -39,7 +39,7 @@ const DemoTutorial: React.FC = () => {
       {/* Sidebar Navigation */}
       <div className="w-64 bg-slate-800/50 border-r border-slate-700 flex-shrink-0">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-emerald-400 mb-6">Getting Started</h2>
+          <h2 className="text-xl font-bold mb-6" style={{ color: '#D9E8F7' }}>Getting Started</h2>
           <nav className="space-y-2">
             {sections.map((section) => (
               <button
@@ -48,10 +48,15 @@ const DemoTutorial: React.FC = () => {
                 className={`
                   w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200
                   ${activeSection === section.id 
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                    ? 'border' 
                     : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                   }
                 `}
+                style={activeSection === section.id ? {
+                  backgroundColor: '#D9E8F7' + '20',
+                  color: '#D9E8F7',
+                  borderColor: '#D9E8F7' + '30'
+                } : {}}
               >
                 <span className={`transition-transform duration-200 ${
                   activeSection === section.id ? 'scale-110' : ''
@@ -81,8 +86,8 @@ const DemoTutorial: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gradient-to-br from-yellow-400/10 to-blue-500/10 p-6 rounded-xl border border-yellow-400/20">
                   <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#D9E8F7' + '20' }}>
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#D9E8F7' }}>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
@@ -159,7 +164,7 @@ const DemoTutorial: React.FC = () => {
                     <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h4 className="text-lg font-medium text-emerald-400 mb-2">SPIDA File</h4>
+                          <h4 className="text-lg font-medium mb-2" style={{ color: '#D9E8F7' }}>SPIDA File</h4>
                           <ul className="space-y-2 text-slate-300">
                             <li className="flex items-center space-x-2">
                               <CheckIcon />
@@ -294,7 +299,7 @@ const DemoTutorial: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Data Table Features */}
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-semibold text-emerald-400">Data Table</h2>
+                  <h2 className="text-2xl font-semibold" style={{ color: '#D9E8F7' }}>Data Table</h2>
                   <div className="space-y-4">
                     <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                       <h3 className="text-lg font-medium text-white mb-2">Interactive Editing</h3>
@@ -336,8 +341,8 @@ const DemoTutorial: React.FC = () => {
                 <h2 className="text-2xl font-semibold text-white mb-6">Advanced Capabilities</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1" style={{ backgroundColor: '#D9E8F7' + '20' }}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#D9E8F7' }}>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
@@ -384,12 +389,12 @@ const DemoTutorial: React.FC = () => {
               <div className="space-y-8">
                 {/* Sample Data Formats */}
                 <div>
-                  <h2 className="text-2xl font-semibold text-emerald-400 mb-6">Sample Data Formats</h2>
+                  <h2 className="text-2xl font-semibold mb-6" style={{ color: '#D9E8F7' }}>Sample Data Formats</h2>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
                       <h3 className="text-lg font-medium text-white mb-3">SPIDA JSON Structure</h3>
                       <div className="bg-slate-900/70 rounded-lg p-4 border border-slate-700 text-sm">
-                        <pre className="text-emerald-400 overflow-x-auto">
+                        <pre className="overflow-x-auto" style={{ color: '#D9E8F7' }}>
 {`{
   "version": "1.0",
   "poles": [
@@ -484,7 +489,7 @@ const DemoTutorial: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3">
-                        <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#D9E8F7' }}></div>
                         <span className="text-slate-300">Start with smaller datasets to familiarize yourself</span>
                       </div>
                       <div className="flex items-center space-x-3">

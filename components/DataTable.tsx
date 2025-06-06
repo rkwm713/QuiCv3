@@ -69,7 +69,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
           </p>
         </div>
         <div className="flex space-x-1">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D9E8F7' }}></div>
           <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse delay-100"></div>
           <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-200"></div>
         </div>
@@ -109,15 +109,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
             <div className="flex items-center space-x-3">
               <span className="text-sm text-slate-300">Filter:</span>
               <div className="flex items-center space-x-2">
-                <span className={`text-xs transition-colors duration-200 ${!showErrorsOnly ? 'text-emerald-400 font-medium' : 'text-slate-400'}`}>
+                <span className={`text-xs transition-colors duration-200 ${!showErrorsOnly ? 'font-medium' : 'text-slate-400'}`} style={{ color: !showErrorsOnly ? '#D9E8F7' : undefined }}>
                   All
                 </span>
-                <button
+                                  <button
                   onClick={() => setShowErrorsOnly(!showErrorsOnly)}
                   className={`
-                    relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-2 focus:ring-offset-slate-800
+                    relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800
                     ${showErrorsOnly ? 'bg-red-500' : 'bg-slate-600'}
                   `}
+                  style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
                 >
                   <span
                     className={`
@@ -167,7 +168,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                     <div className="flex items-center space-x-1">
                       <span>{col.label}</span>
                       {col.editable && (
-                        <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#D9E8F7' }}>
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       )}
@@ -214,10 +215,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                               className="
                                 w-full bg-slate-700/80 border border-slate-600/50 text-slate-200 text-sm 
                                 rounded-lg shadow-sm transition-all duration-200
-                                focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 
+                                focus:ring-2 focus:border-emerald-500/50 
                                 hover:bg-slate-600/80 hover:border-slate-500/50
                                 p-2
                               "
+                              style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
                             >
                               {col.options.map(opt => <option key={opt} value={opt}>{opt || 'N/A'}</option>)}
                             </select>
@@ -230,10 +232,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                                 className="
                                   w-full bg-slate-700/80 border border-slate-600/50 text-slate-200 text-sm 
                                   rounded-lg shadow-sm transition-all duration-200
-                                  focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 
+                                  focus:ring-2 focus:border-emerald-500/50 
                                   hover:bg-slate-600/80 hover:border-slate-500/50
                                   p-2 pr-8
                                 "
+                                style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
                               />
                               <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none text-sm">
                                 %
@@ -247,10 +250,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                               className="
                                 w-full bg-slate-700/80 border border-slate-600/50 text-slate-200 text-sm 
                                 rounded-lg shadow-sm transition-all duration-200
-                                focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 
+                                focus:ring-2 focus:border-emerald-500/50 
                                 hover:bg-slate-600/80 hover:border-slate-500/50
                                 p-2
                               "
+                              style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
                             />
                           )
                         ) : (
@@ -270,13 +274,24 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                       onClick={() => onViewDetails(pole)}
                       className="
                         inline-flex items-center space-x-1 px-3 py-1.5 
-                        bg-emerald-500/10 hover:bg-emerald-500/20 
-                        text-emerald-400 hover:text-emerald-300
-                        border border-emerald-500/30 hover:border-emerald-500/50
-                        rounded-lg font-medium text-xs
+                        border rounded-lg font-medium text-xs
                         transition-all duration-200 transform hover:scale-105
-                        focus:outline-none focus:ring-2 focus:ring-emerald-500/50
+                        focus:outline-none focus:ring-2
                       "
+                      style={{
+                        backgroundColor: '#D9E8F7' + '20',
+                        color: '#D9E8F7',
+                        borderColor: '#D9E8F7' + '50',
+                        '--tw-ring-color': '#D9E8F7'
+                      } as React.CSSProperties}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#D9E8F7' + '30';
+                        e.currentTarget.style.color = '#D9E8F7';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#D9E8F7' + '20';
+                        e.currentTarget.style.color = '#D9E8F7';
+                      }}
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

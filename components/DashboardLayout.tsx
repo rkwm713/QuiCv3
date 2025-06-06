@@ -462,7 +462,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                       relative py-4 px-2 font-medium text-sm transition-all duration-300
                       flex items-center space-x-2 group
                       ${activeTab === tab.id 
-                        ? 'text-emerald-400 border-b-2 border-emerald-400' 
+                        ? 'text-yellow-400 border-b-2 border-yellow-400' 
                         : 'text-slate-400 hover:text-slate-200'
                       }
                       ${tab.id === 'analytics' && !isAiUnlocked ? 'relative' : ''}
@@ -553,12 +553,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="text-center text-slate-500 text-sm w-full max-w-none mx-auto pt-8 px-4">
-          <div className="border-t border-slate-800 pt-4">
-            QuiC by TechServ &copy; {new Date().getFullYear()} • Professional Utility Data Quality Control
-          </div>
-        </footer>
+
       </div>
 
       {showPinModal && (
