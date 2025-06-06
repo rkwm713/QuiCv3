@@ -1,4 +1,3 @@
-
 import {
   SpidaPoleTypeDefinition,
   IntermediateSpidaPole,
@@ -50,6 +49,8 @@ export function normalizePoleNum(value: any): string | null {
   return num.toString(); 
 }
 
+// Define commonNormalizePoleNum immediately after normalizePoleNum
+const commonNormalizePoleNum = normalizePoleNum;
 
 function normalizeNumber(value: any): number | null {
   if (typeof value === 'number' && !isNaN(value)) return value;
@@ -518,7 +519,7 @@ export function normalizeKatapultData(
     }
     const katPoleNum = normalizePoleNum(poleNumForProcessing);
 
-    const spec = getKatapultSpecFromNodeAndBirthmarks(p, birthmarks);
+    const spec: string | null = getKatapultSpecFromNodeAndBirthmarks(p, birthmarks);
     
     const existingPctRaw = getFirstValueFromKatapultAttribute(p.attributes?.["existing_capacity_%"]);
     const existingPct = existingPctRaw !== null ? normalizeNumber(existingPctRaw) : normalizeNumber(p["Condition (%)"]); 
@@ -531,7 +532,7 @@ export function normalizeKatapultData(
 
     return {
       originalIndex: index,
-      originalDataSource: 'katapult',
+      originalDataSource: 'katapult' as const,
       scid: katScid, 
       poleNum: katPoleNum,
       coords: coords,
@@ -915,8 +916,8 @@ export function recalculateMismatchFlags(pole: ProcessedPole): ProcessedPole {
   const katapultExistingPct = updatedPole.katapult?.existingPct; 
   updatedPole.isExistingPctMismatch = bothPolesExist && spidaExistingPct !== katapultExistingPct;
   
-  const spidaFinalPct = normalizeNumber(updatedPole.editableSpidaFinalPct || null);
-  const katapultFinalPct = updatedPole.katapult?.finalPct; 
+  const spidaFinalPct = normalizeNumber(updatedPole.editableSpidaFinalPct ?? null);
+  const katapultFinalPct = updatedPole.katapult?.finalPct;
 
   if (bothPolesExist) {
     if (spidaFinalPct !== null && katapultFinalPct !== null) {
@@ -948,5 +949,6 @@ export function recalculateMismatchFlags(pole: ProcessedPole): ProcessedPole {
   
   return updatedPole;
 }
-const commonNormalizePoleNum = normalizePoleNum; 
+
+// Export commonNormalizePoleNum for use in other files
 export { commonNormalizePoleNum };
