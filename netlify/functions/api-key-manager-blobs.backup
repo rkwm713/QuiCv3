@@ -1,0 +1,98 @@
+import { getStore } from "@netlify/blobs";
+
+const STORE_NAME = "api-keys";
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY; // Set this in Netlify environment
+
+// Simple encryption/decryption utilities
+const encrypt = (text) => {
+  // In production, use proper encryption like crypto.AES
+  // This is a simplified example
+  if (!ENCRYPTION_KEY) throw new Error('Encryption key not configured');
+  return Buffer.from(text).toString('base64');
+};
+
+const decrypt = (encryptedText) => {
+  if (!ENCRYPTION_KEY) throw new Error('Encryption key not configured');
+  return Buffer.from(encryptedText, 'base64').toString();
+};
+
+export const handler = async (event, context) => {
+  // Only allow admin access (you should implement proper auth)
+  const adminToken = event.headers['x-admin-token'];
+  if (adminToken !== process.env.ADMIN_TOKEN) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Unauthorized' })
+    };
+  }
+
+  const store = getStore(STORE_NAME);
+  
+  try {
+    switch (event.httpMethod) {
+      case 'GET':
+        // Retrieve API key
+        const keyData = await store.get('gemini-api-key');
+        if (!keyData) {
+          return {
+            statusCode: 404,
+            body: JSON.stringify({ error: 'API key not found' })
+          };
+        }
+        
+        const decryptedKey = decrypt(keyData);
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            key: decryptedKey,
+            lastUpdated: await store.get('gemini-api-key-updated') || 'Unknown'
+          })
+        };
+
+      case 'POST':
+        // Store/update API key
+        const { apiKey } = JSON.parse(event.body);
+        if (!apiKey || typeof apiKey !== 'string') {
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Valid API key required' })
+          };
+        }
+
+        const encryptedKey = encrypt(apiKey);
+        await store.set('gemini-api-key', encryptedKey);
+        await store.set('gemini-api-key-updated', new Date().toISOString());
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ message: 'API key stored successfully' })
+        };
+
+      case 'DELETE':
+        // Delete API key
+        await store.delete('gemini-api-key');
+        await store.delete('gemini-api-key-updated');
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ message: 'API key deleted' })
+        };
+
+      default:
+        return {
+          statusCode: 405,
+          body: JSON.stringify({ error: 'Method not allowed' })
+        };
+    }
+  } catch (error) {
+    console.error('API Key Manager Error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
+      })
+    };
+  }
+}; 

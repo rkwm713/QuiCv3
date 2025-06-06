@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@neondatabase/serverless": "^0.9.0",
+    "@netlify/blobs": "^8.1.0",
     "@types/leaflet": "^1.9.18",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",

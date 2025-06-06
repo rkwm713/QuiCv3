@@ -1,14 +1,17 @@
 // Configuration for Google Gemini API via Netlify Functions
 // This provides secure API access without exposing keys to the client
 
+import { getApiBaseUrl, validateEnvironment } from '../utils/env';
+
 export class GeminiService {
   private baseUrl: string;
 
   constructor() {
-    // Use Netlify function endpoints (will be /.netlify/functions/ in production)
-    this.baseUrl = process.env.NODE_ENV === 'production' 
-      ? '/.netlify/functions' 
-      : 'http://localhost:8888/.netlify/functions';
+    // Validate environment configuration on initialization
+    validateEnvironment();
+    
+    // Use centralized environment configuration
+    this.baseUrl = getApiBaseUrl();
   }
 
   async generateAnalysis(prompt: string, analysisType?: string): Promise<string> {
