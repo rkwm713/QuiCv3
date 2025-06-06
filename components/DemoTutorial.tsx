@@ -155,7 +155,7 @@ const DemoTutorial: React.FC = () => {
                 {/* Step 1 */}
                 <div className="flex items-start space-x-6">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 swirl-yellow-white rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
+                    <div className="w-12 h-12 solid-yellow-glow rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
                       1
                     </div>
                   </div>
@@ -205,7 +205,7 @@ const DemoTutorial: React.FC = () => {
                 {/* Step 2 */}
                 <div className="flex items-start space-x-6">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 swirl-yellow-white rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
+                    <div className="w-12 h-12 solid-yellow-glow rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
                       2
                     </div>
                   </div>
@@ -245,7 +245,7 @@ const DemoTutorial: React.FC = () => {
                 {/* Step 3 */}
                 <div className="flex items-start space-x-6">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 swirl-yellow-white rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
+                    <div className="w-12 h-12 solid-yellow-glow rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
                       3
                     </div>
                   </div>

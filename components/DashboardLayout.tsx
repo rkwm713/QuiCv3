@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { APP_TITLE } from '../constants';
 import DemoTutorial from './DemoTutorial';
 import AIAnalytics from './AIAnalytics';
@@ -18,6 +18,11 @@ interface DashboardLayoutProps {
   // Data props for AI Analytics
   comparisonData?: any;
   poleData?: any[];
+}
+
+interface Bolt {
+  canvas: HTMLCanvasElement;
+  duration: number;
 }
 
 // Icon components for the new interface
@@ -217,6 +222,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+
+  // Lightning animation refs
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
+  const boltsRef = useRef<Bolt[]>([]);
+  const lastFrameRef = useRef<number>(Date.now());
+  const flashOpacityRef = useRef<number>(0);
+  
+  // Animation constants
+  const totalBoltDuration = 0.2;
+  const boltFadeDuration = 0.1;
+  const boltWidth = 4.0;
+  const boltWobble = 20.0;
   
   // Card collapse/expand state
   const [expandedCards, setExpandedCards] = useState<{
@@ -228,6 +246,121 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     step2: false,  // Start collapsed until both files uploaded
     step3: false,  // Start collapsed until both files uploaded
   });
+
+  // Lightning animation functions
+  const setCanvasSize = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+  };
+
+  const createBoltCanvas = (startX: number, startY: number, length: number, angle: number): HTMLCanvasElement => {
+    const canvas = document.createElement('canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext('2d')!;
+    
+    const x = startX;
+    let y = startY;
+    
+    context.strokeStyle = 'rgba(255, 255, 255, 1.0)';
+    context.lineWidth = boltWidth;
+    context.lineCap = 'round';
+    context.shadowColor = 'rgba(100, 149, 237, 0.8)';
+    context.shadowBlur = 10;
+    
+    context.beginPath();
+    context.moveTo(x, y);
+    
+    const segments = Math.floor(length / 10);
+    for (let i = 0; i < segments; i++) {
+      const segmentLength = length / segments;
+      const wobbleX = (Math.random() - 0.5) * boltWobble;
+      const wobbleY = (Math.random() - 0.5) * boltWobble;
+      
+      y += segmentLength + wobbleY;
+      context.lineTo(x + wobbleX, y);
+    }
+    
+    context.stroke();
+    
+    // Add some branches
+    if (Math.random() > 0.7) {
+      const branchY = startY + Math.random() * length * 0.7;
+      const branchLength = length * 0.3;
+      const branchAngle = angle + (Math.random() - 0.5) * Math.PI / 4;
+      
+      context.beginPath();
+      context.moveTo(x, branchY);
+      context.lineTo(
+        x + Math.cos(branchAngle) * branchLength,
+        branchY + Math.sin(branchAngle) * branchLength
+      );
+      context.stroke();
+    }
+    
+    return canvas;
+  };
+
+  const launchBolt = (x: number, y: number, length: number, angle: number) => {
+    const boltCanvas = createBoltCanvas(x, y, length, angle);
+    const bolt: Bolt = {
+      canvas: boltCanvas,
+      duration: 0
+    };
+    
+    boltsRef.current.push(bolt);
+    flashOpacityRef.current = 0.3;
+  };
+
+  const tick = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const context = canvas.getContext('2d')!;
+    const frame = Date.now();
+    const elapsed = (frame - lastFrameRef.current) / 1000.0;
+    lastFrameRef.current = frame;
+    
+    // Clear the canvas
+    context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    
+    // Fire a bolt every once in a while
+    if (Math.random() > 0.9985) {
+      const x = Math.floor(-10 + Math.random() * (window.innerWidth + 20));
+      const y = 0; // Always start from the very top of the screen
+      const length = Math.floor(window.innerHeight / 2 + Math.random() * (window.innerHeight / 2));
+      
+      launchBolt(x, y, length, Math.PI * 3 / 2);
+    }
+    
+    // Draw the flash
+    if (flashOpacityRef.current > 0) {
+      context.fillStyle = `rgba(255, 255, 255, ${flashOpacityRef.current})`;
+      context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      flashOpacityRef.current = Math.max(0, flashOpacityRef.current - 2.0 * elapsed);
+    }
+    
+    // Draw each bolt
+    const bolts = boltsRef.current;
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const bolt = bolts[i];
+      bolt.duration += elapsed;
+      
+      if (bolt.duration >= totalBoltDuration) {
+        bolts.splice(i, 1);
+        continue;
+      }
+      
+      context.globalAlpha = Math.max(0, Math.min(1, (totalBoltDuration - bolt.duration) / boltFadeDuration));
+      context.drawImage(bolt.canvas, 0, 0);
+    }
+    
+    context.globalAlpha = 1.0;
+    animationFrameRef.current = requestAnimationFrame(tick);
+  };
 
   // Handle analytics tab access with PIN protection
   const handleAnalyticsTabClick = () => {
@@ -262,6 +395,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       setHasAutoSwitchedToTable(false);
     }
   }, [hasComparisonRun]);
+
+  // Lightning animation setup
+  useEffect(() => {
+    setCanvasSize();
+    
+    const handleResize = () => {
+      setCanvasSize();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    animationFrameRef.current = requestAnimationFrame(tick);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
   // Auto-collapse completed steps
   useEffect(() => {
@@ -337,14 +489,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   ];
 
   return (
-    <div className="h-screen animated-gradient-bg flex flex-col">
+    <div className="h-screen animated-gradient-bg flex flex-col relative">
+      {/* Lightning canvas background */}
+      <canvas 
+        ref={canvasRef}
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{ background: 'transparent' }}
+      />
+      
       {/* Animated background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-10">
         <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse-slow" />
         <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '4s' }} />
       </div>
 
-      <div className="relative z-10 flex flex-col h-full">
+      <div className="relative z-20 flex flex-col h-full">
         {/* Header and Cards - Fixed Height */}
         <div className="flex-shrink-0 p-3 md:p-6 space-y-4">
         {/* Header */}
@@ -480,7 +639,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                       </svg>
                     )}
                     {activeTab === tab.id && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 swirl-yellow-white-fast transform origin-left" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 solid-yellow-glow transform origin-left" />
                     )}
                   </button>
                 ))}

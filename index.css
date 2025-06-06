@@ -228,6 +228,15 @@ body {
   }
 }
 
+@keyframes yellow-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.4), 0 0 16px rgba(251, 191, 36, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.8), 0 0 32px rgba(251, 191, 36, 0.6);
+  }
+}
+
 .swirl-yellow-white {
   background: radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b);
   background-size: 400% 400%;
@@ -238,6 +247,13 @@ body {
   background: radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b);
   background-size: 400% 400%;
   animation: swirl-circular 1.5s ease-in-out infinite;
+}
+
+/* New solid yellow button style with slow glow */
+.solid-yellow-glow {
+  background-color: #fbbf24; /* Tailwind yellow-400 */
+  color: #1f2937; /* slate-900 text default for contrast */
+  animation: yellow-glow 4s ease-in-out infinite;
 }
 
 .swirl-grey-black-slow {
