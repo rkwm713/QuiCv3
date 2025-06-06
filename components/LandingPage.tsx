@@ -81,24 +81,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
         {/* Header */}
         <header className="text-center pt-16 pb-8">
           <div className={`transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-            <div className="inline-flex items-center space-x-4 mb-4">
-              <img 
-                src="/logo.svg" 
-                alt="QuiC Logo" 
-                className="w-24 h-24 animate-heartbeat"
-                style={{ filter: 'hue-rotate(45deg) saturate(1.5) brightness(1.2)' }}
-              />
-              <h1 className="text-8xl font-bold bg-clip-text text-transparent animate-shimmer" style={{
-                background: 'radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b)',
-                backgroundSize: '400% 400%',
-                animation: 'swirl-circular 3s ease-in-out infinite',
+            <div className="mb-4">
+              <h1 className="text-8xl font-bold bg-clip-text text-transparent swirl-grey-black-slow" style={{
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text'
               }}>
                 QuiC
               </h1>
             </div>
-            <p className="text-2xl text-black mb-4 animate-gentle-bounce">
+            <p className="text-2xl text-slate-200 mb-4 animate-gentle-bounce" style={{
+              filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
+            }}>
               Quality Control for SPIDA & Katapult Data
             </p>
           </div>
@@ -113,7 +106,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               
               {/* Feature carousel */}
               <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-black mb-8">Features</h2>
+                <h2 className="text-3xl font-bold text-slate-200 mb-8" style={{
+                  filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
+                }}>Features</h2>
                 
                 <div className="relative h-64 bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-2xl border border-slate-600/50 overflow-hidden">
                   {features.map((feature, index) => (
@@ -166,7 +161,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
 
               {/* Process steps */}
               <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-black mb-8">Simple Process</h2>
+                <h2 className="text-3xl font-bold text-slate-200 mb-8" style={{
+                  filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
+                }}>Simple Process</h2>
                 
                 <div className="space-y-6">
                   {steps.map((step, index) => (
@@ -191,8 +188,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
             {/* Call to action */}
             <div className={`text-center transform transition-all duration-1000 delay-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               <div className="space-y-6">
-                <h2 className="text-4xl font-bold text-black mb-4">Ready to Get Started?</h2>
-                <p className="text-xl text-black mb-8 max-w-2xl mx-auto">
+                <h2 className="text-4xl font-bold text-slate-200 mb-4" style={{
+                  filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
+                }}>Ready to Get Started?</h2>
+                <p className="text-xl text-slate-200 mb-8 max-w-2xl mx-auto" style={{
+                  filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
+                }}>
                   Transform your utility pole data analysis workflow with QuiC's powerful comparison and visualization tools.
                 </p>
                 
@@ -209,7 +210,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                   <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
                 </button>
                 
-                <div className="flex items-center justify-center space-x-8 text-sm text-black mt-8">
+                <div className="flex items-center justify-center space-x-8 text-sm text-slate-200 mt-8" style={{
+                  filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
+                }}>
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                     <span>No installation required</span>

@@ -340,20 +340,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     <div className="min-h-screen animated-gradient-bg">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse-slow" />
+        <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '4s' }} />
       </div>
 
       <div className="relative z-10 p-3 md:p-6 space-y-4">
         {/* Header */}
         <header className="text-left">
           <div className="flex items-center space-x-4 mb-2">
-            <h1 className="text-5xl font-bold bg-clip-text text-transparent" style={{
-              background: 'radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b)',
-              backgroundSize: '400% 400%',
-              animation: 'swirl-circular 3s ease-in-out infinite',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text'
+            <h1 className="text-5xl font-bold text-slate-200" style={{
+              filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
             }}>
               {APP_TITLE}
             </h1>

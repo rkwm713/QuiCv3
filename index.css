@@ -108,6 +108,20 @@
   animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Slow pulse animation for background elements */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Smooth transitions for all interactive elements */
 * {
   transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
@@ -161,17 +175,17 @@
 }
 
 .animated-gradient-bg {
-  background: linear-gradient(-45deg, #2d3748, #718096, #e2e8f0, #f7fafc, #4a5568, #a0aec0);
+  background: linear-gradient(-45deg, #1f2937, #374151, #4b5563, #6b7280, #111827, #1e293b);
   background-size: 400% 400%;
-  animation: animated-gradient 12s ease infinite;
+  animation: animated-gradient 25s ease infinite;
   min-height: 100vh;
 }
 
 /* Apply the animated background to the body */
 body {
-  background: linear-gradient(-45deg, #2d3748, #718096, #e2e8f0, #f7fafc, #4a5568, #a0aec0);
+  background: linear-gradient(-45deg, #1f2937, #374151, #4b5563, #6b7280, #111827, #1e293b);
   background-size: 400% 400%;
-  animation: animated-gradient 12s ease infinite;
+  animation: animated-gradient 25s ease infinite;
   min-height: 100vh;
   margin: 0;
   padding: 0;
@@ -224,4 +238,11 @@ body {
   background: radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b);
   background-size: 400% 400%;
   animation: swirl-circular 1.5s ease-in-out infinite;
+}
+
+.swirl-grey-black-slow {
+  background: radial-gradient(circle, #374151, #111827, #6b7280, #1f2937, #374151);
+  background-size: 400% 400%;
+  animation: swirl-circular 6s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px #fbbf24) drop-shadow(0 0 40px #f59e0b);
 } 
