@@ -831,20 +831,23 @@ export function performComparison(
 
       if (bestCoordMatch) {
         const {kPole, kIdx, distance} = bestCoordMatch;
+        // Explicitly assert the type to help TypeScript
+        const typedKPole = kPole as NormalizedPole;
+        
         if (distance < COORDINATE_MATCH_THRESHOLD_METERS.DIRECT) { 
-          if (specsMatchSimilar(sPole.spec, kPole.spec)) {
-             results.push(createProcessedPoleEntry(MatchTier.COORDINATE_SPEC_VERIFIED, sPole, kPole, distance));
+          if (specsMatchSimilar(sPole.spec, typedKPole.spec)) {
+             results.push(createProcessedPoleEntry(MatchTier.COORDINATE_SPEC_VERIFIED, sPole, typedKPole, distance));
              stats.matchesByTier[MatchTier.COORDINATE_SPEC_VERIFIED]++;
           } else {
-             results.push(createProcessedPoleEntry(MatchTier.COORDINATE_DIRECT_MATCH, sPole, kPole, distance));
+             results.push(createProcessedPoleEntry(MatchTier.COORDINATE_DIRECT_MATCH, sPole, typedKPole, distance));
              stats.matchesByTier[MatchTier.COORDINATE_DIRECT_MATCH]++;
           }
           spidaMatchedIndices.add(sIdx);
           katapultMatchedIndices.add(kIdx);
           stats.totalMatches++;
         } else { 
-          if (specsMatchSimilar(sPole.spec, kPole.spec)) {
-            results.push(createProcessedPoleEntry(MatchTier.COORDINATE_SPEC_VERIFIED, sPole, kPole, distance));
+          if (specsMatchSimilar(sPole.spec, typedKPole.spec)) {
+            results.push(createProcessedPoleEntry(MatchTier.COORDINATE_SPEC_VERIFIED, sPole, typedKPole, distance));
             spidaMatchedIndices.add(sIdx);
             katapultMatchedIndices.add(kIdx);
             stats.matchesByTier[MatchTier.COORDINATE_SPEC_VERIFIED]++;
@@ -908,7 +911,7 @@ export function recalculateMismatchFlags(pole: ProcessedPole): ProcessedPole {
   const bothPolesExist = !!(updatedPole.spida && updatedPole.katapult);
 
   const editableSpidaSpecNorm = normalizePoleSpec(updatedPole.editableSpidaSpec);
-  const katapultSpecNorm = updatedPole.katapult?.spec; 
+  const katapultSpecNorm = updatedPole.katapult?.spec ?? null; 
   
   updatedPole.isSpecMismatch = bothPolesExist && !specsMatchSimilar(editableSpidaSpecNorm, katapultSpecNorm);
   
