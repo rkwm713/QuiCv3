@@ -87,15 +87,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                 alt="QuiC Logo" 
                 className="w-16 h-16 animate-heartbeat"
               />
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent animate-shimmer">
+              <h1 className="text-6xl font-bold text-white animate-shimmer">
                 QuiC
               </h1>
             </div>
             <p className="text-2xl text-slate-300 mb-4 animate-gentle-bounce">
               Quality Control for SPIDA & Katapult Data
-            </p>
-            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-              Professional utility pole data reconciliation tool that transforms complex data analysis into simple, visual insights
             </p>
           </div>
         </header>
