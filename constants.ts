@@ -54,6 +54,7 @@ export const TABLE_COLUMNS = [
 
 export const MISMATCH_HIGHLIGHT_CLASS = 'bg-red-500 bg-opacity-30';
 export const EDIT_HIGHLIGHT_CLASS = 'bg-yellow-500 bg-opacity-20';
+export const REVIEW_FLAG_CLASS = 'bg-yellow-400 bg-opacity-40';
 
 export const SVG_MAP_SETTINGS = {
   POLE_RADIUS: 5,

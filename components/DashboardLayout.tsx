@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { APP_TITLE } from '../constants';
 import DemoTutorial from './DemoTutorial';
 import AIAnalytics from './AIAnalytics';
+import HeightComparisonTable from './HeightComparisonTable';
 
 interface DashboardLayoutProps {
   dataSourceSection: React.ReactNode;
@@ -48,6 +49,12 @@ const MapIcon: React.FC = () => (
 const StatisticsIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+
+const QCIcon: React.FC = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -218,7 +225,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   comparisonData,
   poleData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'demo' | 'table' | 'map' | 'analytics' | 'statistics'>('demo');
+  const [activeTab, setActiveTab] = useState<'demo' | 'table' | 'map' | 'analytics' | 'statistics' | 'qc'>('demo');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -485,6 +492,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'table' as const, name: 'Data Table', icon: <TableIcon />, description: 'Detailed comparison results' },
     { id: 'map' as const, name: 'Map View', icon: <MapIcon />, description: 'Geographic visualization' },
     { id: 'statistics' as const, name: 'Statistics', icon: <StatisticsIcon />, description: 'Match statistics & insights' },
+    { id: 'qc' as const, name: 'Height Comparison', icon: <QCIcon />, description: 'Compare pole heights, wires, and attachments between systems' },
     { id: 'analytics' as const, name: 'Analytics', icon: <AnalyticsIcon />, description: 'AI-powered data insights' },
   ];
 
@@ -683,6 +691,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
                     <div className="p-6 h-full overflow-auto">
                       {statusSection}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`
+                absolute inset-0 transition-all duration-500 transform
+                ${activeTab === 'qc' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
+              `}>
+                <div className="h-full flex flex-col p-6">
+                  <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
+                    <div className="p-6 h-full overflow-auto">
+                      <HeightComparisonTable poles={poleData || []} />
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ProcessedPole, MatchTier } from '../types';
-import { TABLE_COLUMNS, MATCH_TIER_COLORS, MISMATCH_HIGHLIGHT_CLASS, EDIT_HIGHLIGHT_CLASS } from '../constants';
+import { TABLE_COLUMNS, MATCH_TIER_COLORS, MISMATCH_HIGHLIGHT_CLASS, EDIT_HIGHLIGHT_CLASS, REVIEW_FLAG_CLASS } from '../constants';
 
 interface DataTableProps {
   data: ProcessedPole[];
@@ -42,6 +42,71 @@ const hasErrors = (pole: ProcessedPole): boolean => {
          pole.isCommDropMismatch;
 };
 
+// Helper function to parse percentage string to number
+const parsePercentage = (pctStr: string): number | null => {
+  if (!pctStr || pctStr === 'N/A' || pctStr === '') return null;
+  const numValue = parseFloat(pctStr.toString().replace('%', ''));
+  return isNaN(numValue) ? null : numValue;
+};
+
+// Function to check if a pole should be flagged yellow for review
+const shouldFlagForReview = (pole: ProcessedPole, columnKey: string): boolean => {
+  // Check for loading > 90% in any loading column
+  if (columnKey === 'editableSpidaExistingPct' || columnKey === 'displayKatapultExistingPct' ||
+      columnKey === 'editableSpidaFinalPct' || columnKey === 'displayKatapultFinalPct') {
+    
+    let pctValue: number | null = null;
+    
+    if (columnKey === 'editableSpidaExistingPct') {
+      pctValue = parsePercentage(pole.editableSpidaExistingPct);
+    } else if (columnKey === 'displayKatapultExistingPct') {
+      pctValue = parsePercentage(pole.displayKatapultExistingPct);
+    } else if (columnKey === 'editableSpidaFinalPct') {
+      pctValue = parsePercentage(pole.editableSpidaFinalPct);
+    } else if (columnKey === 'displayKatapultFinalPct') {
+      pctValue = parsePercentage(pole.displayKatapultFinalPct);
+    }
+    
+    if (pctValue !== null && pctValue > 90) {
+      return true;
+    }
+  }
+  
+  // Check for difference > 45% between recommended and measured percentages
+  // This applies to both SPIDA and Katapult percentage columns
+  if (columnKey === 'editableSpidaExistingPct' || columnKey === 'editableSpidaFinalPct' ||
+      columnKey === 'displayKatapultExistingPct' || columnKey === 'displayKatapultFinalPct') {
+    
+    // For SPIDA columns, compare existing vs final
+    if (columnKey === 'editableSpidaExistingPct' || columnKey === 'editableSpidaFinalPct') {
+      const existingPct = parsePercentage(pole.editableSpidaExistingPct);
+      const finalPct = parsePercentage(pole.editableSpidaFinalPct);
+      
+      if (existingPct !== null && finalPct !== null) {
+        const difference = Math.abs(existingPct - finalPct);
+        if (difference > 45) {
+          return true;
+        }
+      }
+    }
+    
+    // For Katapult columns, compare existing vs final
+    if (columnKey === 'displayKatapultExistingPct' || columnKey === 'displayKatapultFinalPct') {
+      const existingPct = parsePercentage(pole.displayKatapultExistingPct);
+      const finalPct = parsePercentage(pole.displayKatapultFinalPct);
+      
+      if (existingPct !== null && finalPct !== null) {
+        const difference = Math.abs(existingPct - finalPct);
+        if (difference > 45) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  return false;
+};
+
 export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetails }) => {
   const [showErrorsOnly, setShowErrorsOnly] = useState(false);
 
@@ -52,6 +117,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
 
   const errorCount = useMemo(() => {
     return data.filter(hasErrors).length;
+  }, [data]);
+
+  const reviewCount = useMemo(() => {
+    return data.filter(pole => {
+      // Check if any of the percentage columns should be flagged for review
+      return shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
+             shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
+             shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
+             shouldFlagForReview(pole, 'displayKatapultFinalPct');
+    }).length;
   }, [data]);
 
   if (!data || data.length === 0) {
@@ -101,6 +176,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                   ({errorCount} with errors)
                 </span>
               )}
+              {reviewCount > 0 && (
+                <span className="text-yellow-400">
+                  ({reviewCount} flagged for review)
+                </span>
+              )}
             </div>
           </div>
           
@@ -138,6 +218,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-red-500/30 rounded"></div>
                 <span>Mismatch</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-yellow-400/40 rounded"></div>
+                <span>Review Flag</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-yellow-500/30 rounded"></div>
@@ -194,7 +278,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                   {TABLE_COLUMNS.map((col, colIndex) => {
                     const value = pole[col.key as keyof ProcessedPole] as string | number | boolean;
                     const mismatchClass = getMismatchClass(pole, col.key);
+                    const reviewFlag = shouldFlagForReview(pole, col.key);
                     const tierColorClass = col.key === 'matchTier' ? MATCH_TIER_COLORS[pole.matchTier] : '';
+                    
+                    // Priority: mismatch (red) > review flag (yellow) > normal
+                    const highlightClass = mismatchClass ? mismatchClass : (reviewFlag ? REVIEW_FLAG_CLASS : '');
                     
                     return (
                       <td 
@@ -202,9 +290,9 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
                         className={`
                           px-4 py-3 text-sm transition-all duration-200
                           border-r border-slate-700/20 last:border-r-0
-                          ${tierColorClass} ${mismatchClass} ${col.className || ''}
+                          ${tierColorClass} ${highlightClass} ${col.className || ''}
                           ${colIndex === 0 ? 'sticky left-0 bg-slate-800/90 z-10 group-hover:bg-slate-700/40' : ''}
-                          ${mismatchClass ? 'animate-pulse' : ''}
+                          ${highlightClass ? 'animate-pulse' : ''}
                         `}
                       >
                         {col.editable && pole.spida ? (

@@ -87,8 +87,9 @@ curl -X GET https://your-site.netlify.app/.netlify/functions/api-key-manager \
 
 ## 📊 **Database Schema**
 
-The setup automatically creates this table:
+The setup automatically creates these tables:
 
+### API Keys Table
 ```sql
 CREATE TABLE api_keys (
   id SERIAL PRIMARY KEY,
@@ -100,6 +101,8 @@ CREATE TABLE api_keys (
 
 CREATE INDEX idx_api_keys_name ON api_keys(key_name);
 ```
+
+
 
 ## 🔑 **Managing API Keys**
 
@@ -230,14 +233,40 @@ If you're switching from Netlify Blobs:
 - [ ] AI analysis working with stored key
 - [ ] Error handling tested
 
+## 🎯 **Height Comparison Features**
+
+The Height Comparison system validates data consistency between Katapult and SPIDA:
+
+### **What it does:**
+- ✅ Compares pole heights, wire heights, and attachment heights between systems
+- ✅ Automatically converts SPIDA meters to feet (1m = 3.28084 ft)  
+- ✅ Calculates height differences (Δ) for each item
+- ✅ Applies configurable tolerance threshold (default: 0.5 ft)
+- ✅ Identifies items that exist in only one system
+
+### **Status Categories:**
+- **OK**: Heights within tolerance threshold
+- **HEIGHT DIFF**: Height gap exceeds threshold  
+- **ONLY IN KAT**: Item exists only in Katapult
+- **ONLY IN SPIDA**: Item exists only in SPIDA
+
+### **Dashboard Features:**
+- ✅ Real-time height comparison table
+- ✅ Sortable/filterable by status and item type
+- ✅ Adjustable tolerance threshold setting
+- ✅ Statistics bar showing counts for each status
+- ✅ Color-coded status indicators for quick identification
+- ✅ No database required - works with in-memory data
+
 ## 🎯 **Next Steps**
 
 After setup:
 1. Store your Gemini API key securely
 2. Test AI analysis functionality
-3. Set up monitoring and alerts
-4. Plan for key rotation schedule
-5. Consider expanding database for other application data
+3. Use Height Comparison to validate data consistency
+4. Set up monitoring and alerts
+5. Plan for key rotation schedule
+6. Consider expanding database for other application data
 
 ---
 

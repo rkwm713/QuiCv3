@@ -59,6 +59,12 @@ const SaveIcon: React.FC = () => (
 </svg>
 );
 
+const ResetIcon: React.FC = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+  </svg>
+);
+
 // Helper function to extract the pole number string for normalization
 function getPoleNumDisplayString(
   id: string | number | undefined | null,
@@ -174,6 +180,7 @@ const App: React.FC = () => {
   
   const [statusMessage, setStatusMessage] = useState<string>('Load SPIDA and Katapult JSON files to begin.');
   const [selectedPoleForModal, setSelectedPoleForModal] = useState<ProcessedPole | null>(null);
+  const [resetKey, setResetKey] = useState<number>(0);
   
 
 
@@ -418,6 +425,38 @@ const App: React.FC = () => {
     );
   }, []);
 
+  const handleReset = useCallback(() => {
+    // Confirm with user before resetting
+    const confirmReset = window.confirm('Are you sure you want to reset all uploads and results? This action cannot be undone.');
+    if (!confirmReset) return;
+
+    // Reset all file-related state
+    setRawSpidaJson(null);
+    setSpidaAliasTable({});
+    setNormalizedSpidaData(null);
+    setSpidaFileName(null);
+    setRawKatapultJsonFull(null);
+    setKatapultBirthmarks({});
+    setNormalizedKatapultData(null);
+    setKatapultFileName(null);
+
+    // Reset comparison results
+    setProcessedPoles([]);
+    setComparisonStats(INITIAL_STATS);
+
+    // Reset loading states
+    setIsLoadingSpida(false);
+    setIsLoadingKatapult(false);
+    setIsComparing(false);
+
+    // Reset UI state
+    setSelectedPoleForModal(null);
+    setStatusMessage('All data cleared. Load SPIDA and Katapult JSON files to begin.');
+    
+    // Force FileLoader components to remount by changing the key
+    setResetKey(prev => prev + 1);
+  }, []);
+
   const handleExportCsv = useCallback(() => {
     if (processedPoles.length === 0) {
       setStatusMessage('No data to export.');
@@ -495,6 +534,7 @@ const App: React.FC = () => {
   const dataSourceSection = (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <FileLoader 
+        key={`spida-${resetKey}`}
         label="SPIDA" 
         onFileLoad={handleSpidaFileLoad} 
         isLoading={isLoadingSpida} 
@@ -503,6 +543,7 @@ const App: React.FC = () => {
         icon={<UploadIcon />}
       />
       <FileLoader 
+        key={`katapult-${resetKey}`}
         label="Katapult" 
         onFileLoad={handleKatapultFileLoad} 
         isLoading={isLoadingKatapult}
@@ -549,6 +590,14 @@ const App: React.FC = () => {
         icon={<ExportIcon />}
       >
         Export Katapult Attributes (XLSX)
+      </IconButton>
+      <IconButton 
+        onClick={handleReset} 
+        disabled={isLoadingSpida || isLoadingKatapult || isComparing}
+        className="w-full justify-center text-sm sm:col-span-2 lg:col-span-1 xl:col-span-2 bg-red-600/20 hover:bg-red-600/30 border-red-500/50 text-red-300"
+        icon={<ResetIcon />}
+      >
+        Reset All Data
       </IconButton>
 
     </div>

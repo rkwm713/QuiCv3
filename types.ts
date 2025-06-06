@@ -240,6 +240,31 @@ export interface MapLine {
   color: string;
 }
 
+// Height Comparison related types
+export interface HeightComparisonItem {
+  poleTag: string;
+  itemType: 'Pole' | 'Wire' | 'Other Attachment';
+  description: string;
+  katapultHeightFt: number | null;
+  spidaHeightFt: number | null;
+  delta: number | null;
+  status: 'OK' | 'HEIGHT DIFF' | 'ONLY IN KAT' | 'ONLY IN SPIDA';
+}
+
+export interface HeightComparisonStats {
+  total: number;
+  ok: number;
+  heightDiff: number;
+  onlyInKat: number;
+  onlyInSpida: number;
+}
+
+export interface HeightComparisonData {
+  items: HeightComparisonItem[];
+  stats: HeightComparisonStats;
+  threshold: number;
+}
+
 // For SpidaJson parsing, to represent the overall structure
 export interface SpidaJsonFullFormat { 
   project?: {
