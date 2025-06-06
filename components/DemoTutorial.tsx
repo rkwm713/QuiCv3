@@ -79,7 +79,7 @@ const DemoTutorial: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 p-6 rounded-xl border border-emerald-500/20">
+                <div className="bg-gradient-to-br from-yellow-400/10 to-blue-500/10 p-6 rounded-xl border border-yellow-400/20">
                   <div className="flex items-center space-x-3 mb-4">
                     <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
                       <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,7 +150,7 @@ const DemoTutorial: React.FC = () => {
                 {/* Step 1 */}
                 <div className="flex items-start space-x-6">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
+                    <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-blue-500 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg">
                       1
                     </div>
                   </div>
@@ -479,7 +479,7 @@ const DemoTutorial: React.FC = () => {
                 </div>
 
                 {/* Quick Start Tips */}
-                <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 rounded-xl p-6 border border-emerald-500/20">
+                <div className="bg-gradient-to-r from-yellow-400/10 to-blue-500/10 rounded-xl p-6 border border-yellow-400/20">
                   <h2 className="text-2xl font-semibold text-white mb-4">Quick Start Tips</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">

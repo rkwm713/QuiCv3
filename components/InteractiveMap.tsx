@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ProcessedPole, Coordinate, MatchTier } from '../types';
+import { ProcessedPole } from '../types';
 import { MAP_MARKER_COLORS } from '../constants';
 
 // Fix for default markers in Leaflet with webpack

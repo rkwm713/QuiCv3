@@ -23,9 +23,9 @@ export const IconButton: React.FC<IconButtonProps> = ({
 }) => {
   const getVariantStyles = () => {
     const variants = {
-      primary: 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white border-transparent shadow-lg shadow-emerald-500/25',
+      primary: 'bg-gradient-to-r from-yellow-400 to-blue-500 hover:from-yellow-500 hover:to-blue-600 text-white border-transparent shadow-lg shadow-yellow-400/25',
       secondary: 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600 hover:border-slate-500',
-      success: 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-transparent shadow-lg shadow-green-500/25',
+      success: 'bg-gradient-to-r from-green-500 to-yellow-400 hover:from-green-600 hover:to-yellow-500 text-white border-transparent shadow-lg shadow-green-500/25',
       warning: 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-transparent shadow-lg shadow-yellow-500/25',
       danger: 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white border-transparent shadow-lg shadow-red-500/25'
     };

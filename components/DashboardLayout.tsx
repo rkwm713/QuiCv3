@@ -21,12 +21,6 @@ interface DashboardLayoutProps {
 }
 
 // Icon components for the new interface
-const DatabaseIcon: React.FC = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-  </svg>
-);
-
 const AnalyticsIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -43,12 +37,6 @@ const MapIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
-const ExportIcon: React.FC = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 );
 
@@ -83,7 +71,7 @@ const StepIndicator: React.FC<{
       ${isDisabled 
         ? 'bg-slate-800/50 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
         : isActive 
-          ? 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-900 shadow-lg shadow-emerald-400/50 animate-glow-pulse scale-110 cursor-pointer hover:scale-105' 
+                        ? 'bg-gradient-to-r from-yellow-400 to-blue-500 text-slate-900 shadow-lg shadow-yellow-400/50 animate-glow-pulse scale-110 cursor-pointer hover:scale-105' 
           : 'bg-slate-700/90 text-slate-300 border border-slate-600 hover:bg-slate-600/90 hover:border-slate-500 cursor-pointer hover:scale-105'
       }
       ${!isExpanded && !isDisabled ? 'ring-2 ring-slate-500 ring-opacity-50' : ''}
@@ -352,7 +340,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
@@ -360,7 +348,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* Header */}
         <header className="text-left">
           <div className="flex items-center space-x-4 mb-2">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-blue-500 to-blue-700 bg-clip-text text-transparent">
               {APP_TITLE}
             </h1>
           </div>
@@ -391,7 +379,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
             {/* Fun hover border animation */}
             <div className={`
-              absolute inset-0 rounded-lg bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-sm mt-3
+                              absolute inset-0 rounded-lg bg-gradient-to-r from-yellow-400/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-sm mt-3
               ${expandedCards.step1 ? '' : 'hidden'}
             `}></div>
           </div>
@@ -486,7 +474,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                       </svg>
                     )}
                     {activeTab === tab.id && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500 transform origin-left animate-pulse" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-blue-500 transform origin-left animate-pulse" />
                     )}
                   </button>
                 ))}

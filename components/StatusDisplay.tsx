@@ -79,7 +79,7 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({ stats, statusMessa
         <div className="space-y-4">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-lg p-3">
+            <div className="bg-gradient-to-br from-yellow-400/10 to-blue-500/10 border border-yellow-400/20 rounded-lg p-3">
               <div className="text-xs text-emerald-400 font-medium uppercase tracking-wide">Total Matches</div>
               <div className="text-xl font-bold text-emerald-300 mt-1">{stats.totalMatches}</div>
             </div>
@@ -97,7 +97,7 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({ stats, statusMessa
             </div>
             <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all duration-1000 ease-out"
+                className="h-full bg-gradient-to-r from-yellow-400 to-blue-500 rounded-full transition-all duration-1000 ease-out"
                 style={{ 
                   width: `${totalPoles > 0 ? (stats.totalMatches / totalPoles) * 100 : 0}%` 
                 }}

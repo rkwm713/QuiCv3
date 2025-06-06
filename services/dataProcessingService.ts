@@ -61,15 +61,7 @@ function normalizeNumber(value: any): number | null {
   return null;
 }
 
-function normalizeBoolean(value: any): boolean | null {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'string') {
-    const lower = value.toLowerCase();
-    if (lower === 'true' || lower === 'yes' || lower === 'y' || lower === '1') return true;
-    if (lower === 'false' || lower === 'no' || lower === 'n' || lower === '0') return false;
-  }
-  return null;
-}
+
 
 export function _to_feet_ts(raw: { unit: string; value: number } | number | string | null | undefined): number | null {
   if (raw === null || raw === undefined) return null;
@@ -440,7 +432,7 @@ function getKatapultCommDrop(
 
 export function normalizeKatapultData(
   rawData: KatapultJsonNode[], // Changed from RawKatapultPole[] to KatapultJsonNode[]
-  fileName: string,
+  _fileName: string,
   birthmarks: Record<string, KatapultBirthmarkData>,
   fullKatapultJson: KatapultJsonFormat | null 
 ): NormalizedPole[] {
@@ -770,8 +762,8 @@ function createProcessedPoleEntry(
     isCommDropMismatch,
 
     mapCoords,
-    spidaMapCoords: spidaPole?.coords,
-    katapultMapCoords: katapultPole?.coords,
+    spidaMapCoords: spidaPole?.coords || undefined,
+    katapultMapCoords: katapultPole?.coords || undefined,
     matchDistanceMeters: distanceMeters,
     isEdited: false,
   };
@@ -923,7 +915,7 @@ export function recalculateMismatchFlags(pole: ProcessedPole): ProcessedPole {
   const katapultExistingPct = updatedPole.katapult?.existingPct; 
   updatedPole.isExistingPctMismatch = bothPolesExist && spidaExistingPct !== katapultExistingPct;
   
-  const spidaFinalPct = normalizeNumber(updatedPole.editableSpidaFinalPct);
+  const spidaFinalPct = normalizeNumber(updatedPole.editableSpidaFinalPct || null);
   const katapultFinalPct = updatedPole.katapult?.finalPct; 
 
   if (bothPolesExist) {

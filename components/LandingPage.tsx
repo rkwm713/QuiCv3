@@ -72,7 +72,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-[800px] h-[800px] bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute -top-1/2 -right-1/2 w-[800px] h-[800px] bg-gradient-to-br from-yellow-400/10 to-blue-500/10 rounded-full blur-3xl animate-float" />
         <div className="absolute -bottom-1/2 -left-1/2 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-gradient-to-br from-yellow-500/5 to-orange-500/5 rounded-full blur-3xl animate-gentle-bounce" />
       </div>
@@ -148,7 +148,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                         onClick={() => setCurrentFeature(index)}
                         className={`w-3 h-3 rounded-full transition-all duration-500 ease-in-out ${
                           currentFeature === index 
-                            ? 'bg-emerald-400 scale-125' 
+                            ? 'bg-yellow-400 scale-125' 
                             : 'bg-slate-600 hover:bg-slate-500'
                         }`}
                       />
@@ -165,10 +165,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                   {steps.map((step, index) => (
                     <div 
                       key={index}
-                      className={`flex items-center space-x-6 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-600/50 hover:border-emerald-500/50 transition-all duration-300 hover:scale-105 animate-float`}
+                      className={`flex items-center space-x-6 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-600/50 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105 animate-float`}
                       style={{ animationDelay: `${index * 0.5}s` }}
                     >
-                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg animate-heartbeat">
+                      <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-blue-500 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg animate-heartbeat">
                         {step.number}
                       </div>
                       <div>
@@ -191,7 +191,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                 
                 <button
                   onClick={onEnterApp}
-                  className="group relative inline-flex items-center space-x-3 px-12 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full text-white font-bold text-lg shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40 transform hover:scale-105 transition-all duration-300 animate-float"
+                  className="group relative inline-flex items-center space-x-3 px-12 py-4 bg-gradient-to-r from-yellow-400 to-blue-500 rounded-full text-white font-bold text-lg shadow-lg shadow-yellow-400/25 hover:shadow-xl hover:shadow-yellow-400/40 transform hover:scale-105 transition-all duration-300 animate-float"
                 >
                   <span>Enter QuiC Dashboard</span>
                   <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,7 +204,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                 
                 <div className="flex items-center justify-center space-x-8 text-sm text-slate-400 mt-8">
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                     <span>No installation required</span>
                   </div>
                   <div className="flex items-center space-x-2">
