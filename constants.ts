@@ -8,6 +8,7 @@ export const COORDINATE_MATCH_THRESHOLD_METERS = {
 };
 
 // Height tolerance for spec matching, e.g., 1 foot
+// Note: Height comparison constants have been moved to components/height-comparison/HeightComparisonConstants.ts
 export const POLE_SPEC_HEIGHT_TOLERANCE_FEET = 1;
 
 
@@ -78,9 +79,10 @@ export const INITIAL_STATS: ComparisonStats = {
 };
 
 export const ALLOWED_KATAPULT_NODE_TYPES = new Set([
-  "pole", 
-  "power", // Assuming "Power" from prompt means "power" in lowercase
-  "power transformer", 
-  "joint", 
-  "joint transformer"
+  "pole",
+  "Power",
+  "Power Transformer", 
+  "Joint",
+  "Joint Transformer",
+  "service location"
 ]);

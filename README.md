@@ -345,10 +345,11 @@ export const POLE_SPEC_HEIGHT_TOLERANCE_FEET = 1; // Height matching tolerance
 ```typescript
 export const ALLOWED_KATAPULT_NODE_TYPES = new Set([
   "pole",
-  "power",
-  "power transformer",
-  "joint",
-  "joint transformer"
+  "Power",
+  "Power Transformer",
+  "Joint",
+  "Joint Transformer",
+  "service location"
 ]);
 ```
 

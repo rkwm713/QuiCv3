@@ -389,7 +389,7 @@ function getKatapultCommDrop(
       }
     }
 
-    if (nodeTypeVal && String(nodeTypeVal).toLowerCase().trim() === "service location") {
+    if (nodeTypeVal && String(nodeTypeVal).trim() === "service location") {
       let owner: string | null = null;
       const subTypeAttrRaw = getFirstValueFromKatapultAttribute(attrs.node_sub_type);
       const subTypeAttr = (typeof subTypeAttrRaw === 'string' || typeof subTypeAttrRaw === 'number') ? String(subTypeAttrRaw) : null;

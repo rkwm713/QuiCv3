@@ -1,8 +1,13 @@
 import { ProcessedPole, HeightComparisonItem, HeightComparisonData, HeightComparisonStats } from '../types';
+import { HEIGHT_COMPARISON_CONSTANTS, HEIGHT_COMPARISON_STATUS_COLORS } from '../components/height-comparison/HeightComparisonConstants';
 
-const METERS_TO_FEET = 3.28084;
-const DEFAULT_THRESHOLD = 0.5; // feet
-export const HEIGHT_TOLERANCE_FT = 0.5;
+const { 
+  METERS_TO_FEET, 
+  DEFAULT_THRESHOLD, 
+  MIN_CREDIBLE_HEIGHT_FT,
+  MAX_CREDIBLE_HEIGHT_FT,
+  ATTACHMENT_TO_POLE_HEIGHT_BUFFER_FT
+} = HEIGHT_COMPARISON_CONSTANTS;
 
 export class HeightComparisonService {
 
@@ -177,7 +182,7 @@ export class HeightComparisonService {
       }
     });
 
-    return foundAttachment ? maxHeight + 2 : null;
+    return foundAttachment ? maxHeight + ATTACHMENT_TO_POLE_HEIGHT_BUFFER_FT : null;
   }
 
   /**
@@ -225,7 +230,7 @@ export class HeightComparisonService {
    * Check if height value is credible for utility poles
    */
   private static isCredibleFeet(value: number): boolean {
-    return value > 15 && value < 150;
+    return value > MIN_CREDIBLE_HEIGHT_FT && value < MAX_CREDIBLE_HEIGHT_FT;
   }
 
   /**
@@ -581,17 +586,6 @@ export class HeightComparisonService {
    * Get status color for UI display
    */
   static getStatusColor(status: HeightComparisonItem['status']): string {
-    switch (status) {
-      case 'OK':
-        return 'text-green-400 bg-green-900/20 border-green-500';
-      case 'HEIGHT DIFF':
-        return 'text-red-400 bg-red-900/20 border-red-500';
-      case 'ONLY IN KAT':
-        return 'text-purple-400 bg-purple-900/20 border-purple-500';
-      case 'ONLY IN SPIDA':
-        return 'text-blue-400 bg-blue-900/20 border-blue-500';
-      default:
-        return 'text-slate-400 bg-slate-900/20 border-slate-500';
-    }
+    return HEIGHT_COMPARISON_STATUS_COLORS[status] || 'text-slate-400 bg-slate-900/20 border-slate-500';
   }
 } 

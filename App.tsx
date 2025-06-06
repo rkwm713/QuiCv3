@@ -363,7 +363,7 @@ const App: React.FC = () => {
         }
         
         if (typeof rawNodeTypeValue === 'string' || typeof rawNodeTypeValue === 'number') {
-          const nodeType = String(rawNodeTypeValue).toLowerCase().trim();
+          const nodeType = String(rawNodeTypeValue).trim();
           return ALLOWED_KATAPULT_NODE_TYPES.has(nodeType);
         }
         return false; 
