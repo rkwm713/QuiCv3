@@ -66,12 +66,12 @@ const StepIndicator: React.FC<{
     onClick={isDisabled ? undefined : onToggle}
     disabled={isDisabled}
     className={`
-      absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 flex items-center space-x-2 px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap
+      absolute -top-8 left-1/2 transform -translate-x-1/2 z-20 flex items-center space-x-2 px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap
       transition-all duration-500
       ${isDisabled 
         ? 'bg-slate-800/50 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
         : isActive 
-                        ? 'bg-gradient-to-r from-yellow-400 to-blue-500 text-slate-900 shadow-lg shadow-yellow-400/50 animate-glow-pulse scale-110 cursor-pointer hover:scale-105' 
+                        ? 'swirl-yellow-white text-slate-900 shadow-lg shadow-yellow-400/50 animate-glow-pulse scale-110 cursor-pointer hover:scale-105' 
           : 'bg-slate-700/90 text-slate-300 border border-slate-600 hover:bg-slate-600/90 hover:border-slate-500 cursor-pointer hover:scale-105'
       }
       ${!isExpanded && !isDisabled ? 'ring-2 ring-slate-500 ring-opacity-50' : ''}
@@ -337,7 +337,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen animated-gradient-bg">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse" />
@@ -348,7 +348,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* Header */}
         <header className="text-left">
           <div className="flex items-center space-x-4 mb-2">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-blue-500 to-blue-700 bg-clip-text text-transparent">
+            <h1 className="text-5xl font-bold bg-clip-text text-transparent" style={{
+              background: 'radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b)',
+              backgroundSize: '400% 400%',
+              animation: 'swirl-circular 3s ease-in-out infinite',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text'
+            }}>
               {APP_TITLE}
             </h1>
           </div>
@@ -373,7 +379,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 : 'opacity-0 max-h-0 transform -translate-y-4 pointer-events-none'
               }
             `}>
-              <div className="h-full [&>*]:h-full [&>*]:rounded-lg [&>*]:border-slate-700/50 [&>*]:shadow-md [&>*]:shadow-black/10 hover:[&>*]:shadow-lg hover:[&>*]:shadow-emerald-500/20 [&>*]:transition-all [&>*]:duration-300 hover:[&>*]:border-emerald-500/50 hover:[&>*]:scale-[1.01] hover:[&>*]:-translate-y-0.5">
+              <div className="h-full">
                 {dataSourceSection}
               </div>
             </div>
@@ -401,7 +407,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 : 'opacity-0 max-h-0 transform -translate-y-4 pointer-events-none'
               }
             `}>
-              <div className="h-full [&>*]:h-full [&>*]:rounded-lg [&>*]:border-slate-700/50 [&>*]:shadow-md [&>*]:shadow-black/10 hover:[&>*]:shadow-lg hover:[&>*]:shadow-yellow-500/20 [&>*]:transition-all [&>*]:duration-300 hover:[&>*]:border-yellow-500/50 hover:[&>*]:scale-[1.01] hover:[&>*]:-translate-y-0.5">
+              <div className="h-full">
                 {analysisSection}
               </div>
             </div>
@@ -429,7 +435,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 : 'opacity-0 max-h-0 transform -translate-y-4 pointer-events-none'
               }
             `}>
-              <div className="h-full [&>*]:h-full [&>*]:rounded-lg [&>*]:border-slate-700/50 [&>*]:shadow-md [&>*]:shadow-black/10 hover:[&>*]:shadow-lg hover:[&>*]:shadow-blue-500/20 [&>*]:transition-all [&>*]:duration-300 hover:[&>*]:border-blue-500/50 hover:[&>*]:scale-[1.01] hover:[&>*]:-translate-y-0.5">
+              <div className="h-full">
                 {exportSection}
               </div>
             </div>
@@ -474,7 +480,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                       </svg>
                     )}
                     {activeTab === tab.id && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-400 to-blue-500 transform origin-left animate-pulse" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 swirl-yellow-white-fast transform origin-left" />
                     )}
                   </button>
                 ))}

@@ -57,7 +57,7 @@ export const FileLoader: React.FC<FileLoaderProps> = ({
 
   const getStatusColor = () => {
     if (isLoading) return 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-transparent shadow-lg shadow-yellow-500/25';
-    if (loadedFileName) return 'bg-gradient-to-r from-yellow-400 to-blue-500 hover:from-yellow-500 hover:to-blue-600 text-white border-transparent shadow-lg shadow-yellow-400/25';
+    if (loadedFileName) return 'swirl-yellow-white text-slate-900 border-transparent shadow-lg shadow-yellow-400/25';
     return 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-600 hover:border-slate-500';
   };
 

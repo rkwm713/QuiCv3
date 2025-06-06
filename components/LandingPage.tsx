@@ -69,7 +69,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+    <div className="min-h-screen animated-gradient-bg overflow-hidden">
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/2 -right-1/2 w-[800px] h-[800px] bg-gradient-to-br from-yellow-400/10 to-blue-500/10 rounded-full blur-3xl animate-float" />
@@ -85,13 +85,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               <img 
                 src="/logo.svg" 
                 alt="QuiC Logo" 
-                className="w-16 h-16 animate-heartbeat"
+                className="w-24 h-24 animate-heartbeat"
+                style={{ filter: 'hue-rotate(45deg) saturate(1.5) brightness(1.2)' }}
               />
-              <h1 className="text-6xl font-bold text-white animate-shimmer">
+              <h1 className="text-8xl font-bold bg-clip-text text-transparent animate-shimmer" style={{
+                background: 'radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b)',
+                backgroundSize: '400% 400%',
+                animation: 'swirl-circular 3s ease-in-out infinite',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text'
+              }}>
                 QuiC
               </h1>
             </div>
-            <p className="text-2xl text-slate-300 mb-4 animate-gentle-bounce">
+            <p className="text-2xl text-black mb-4 animate-gentle-bounce">
               Quality Control for SPIDA & Katapult Data
             </p>
           </div>
@@ -106,7 +113,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
               
               {/* Feature carousel */}
               <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-white mb-8">Features</h2>
+                <h2 className="text-3xl font-bold text-black mb-8">Features</h2>
                 
                 <div className="relative h-64 bg-gradient-to-br from-slate-800/50 to-slate-700/50 rounded-2xl border border-slate-600/50 overflow-hidden">
                   {features.map((feature, index) => (
@@ -159,7 +166,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
 
               {/* Process steps */}
               <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-white mb-8">Simple Process</h2>
+                <h2 className="text-3xl font-bold text-black mb-8">Simple Process</h2>
                 
                 <div className="space-y-6">
                   {steps.map((step, index) => (
@@ -168,7 +175,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                       className={`flex items-center space-x-6 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-600/50 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105 animate-float`}
                       style={{ animationDelay: `${index * 0.5}s` }}
                     >
-                      <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-blue-500 rounded-full flex items-center justify-center text-slate-900 font-bold text-lg animate-heartbeat">
+                      <div className="w-12 h-12 swirl-yellow-white rounded-full flex items-center justify-center text-slate-900 font-bold text-lg animate-heartbeat">
                         {step.number}
                       </div>
                       <div>
@@ -184,14 +191,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
             {/* Call to action */}
             <div className={`text-center transform transition-all duration-1000 delay-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               <div className="space-y-6">
-                <h2 className="text-4xl font-bold text-white mb-4">Ready to Get Started?</h2>
-                <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
+                <h2 className="text-4xl font-bold text-black mb-4">Ready to Get Started?</h2>
+                <p className="text-xl text-black mb-8 max-w-2xl mx-auto">
                   Transform your utility pole data analysis workflow with QuiC's powerful comparison and visualization tools.
                 </p>
                 
                 <button
                   onClick={onEnterApp}
-                  className="group relative inline-flex items-center space-x-3 px-12 py-4 bg-gradient-to-r from-yellow-400 to-blue-500 rounded-full text-white font-bold text-lg shadow-lg shadow-yellow-400/25 hover:shadow-xl hover:shadow-yellow-400/40 transform hover:scale-105 transition-all duration-300 animate-float"
+                  className="group relative inline-flex items-center space-x-3 px-12 py-4 swirl-yellow-white rounded-full text-slate-900 font-bold text-lg shadow-lg shadow-yellow-400/25 hover:shadow-xl hover:shadow-yellow-400/40 transform hover:scale-105 transition-all duration-300 animate-float"
                 >
                   <span>Enter QuiC Dashboard</span>
                   <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,7 +209,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
                   <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
                 </button>
                 
-                <div className="flex items-center justify-center space-x-8 text-sm text-slate-400 mt-8">
+                <div className="flex items-center justify-center space-x-8 text-sm text-black mt-8">
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                     <span>No installation required</span>
@@ -221,12 +228,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="text-center py-8 border-t border-slate-800">
-          <div className={`text-slate-500 text-sm transform transition-all duration-1000 delay-900 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-            QuiC by TechServ &copy; {new Date().getFullYear()} • Professional Utility Data Quality Control
-          </div>
-        </footer>
+
       </div>
     </div>
   );

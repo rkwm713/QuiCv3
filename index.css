@@ -145,4 +145,83 @@
   background: linear-gradient(-45deg, #10b981, #06b6d4, #3b82f6, #8b5cf6);
   background-size: 400% 400%;
   animation: gradient-border 3s ease infinite;
+}
+
+/* Animated background gradient */
+@keyframes animated-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient-bg {
+  background: linear-gradient(-45deg, #2d3748, #718096, #e2e8f0, #f7fafc, #4a5568, #a0aec0);
+  background-size: 400% 400%;
+  animation: animated-gradient 12s ease infinite;
+  min-height: 100vh;
+}
+
+/* Apply the animated background to the body */
+body {
+  background: linear-gradient(-45deg, #2d3748, #718096, #e2e8f0, #f7fafc, #4a5568, #a0aec0);
+  background-size: 400% 400%;
+  animation: animated-gradient 12s ease infinite;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Moving swirl animation for buttons */
+@keyframes swirl {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 50%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 50% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes swirl-circular {
+  0% {
+    background-position: 0% 0%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.swirl-yellow-white {
+  background: radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b);
+  background-size: 400% 400%;
+  animation: swirl-circular 3s ease-in-out infinite;
+}
+
+.swirl-yellow-white-fast {
+  background: radial-gradient(circle, #fbbf24, #ffffff, #fbbf24, #ffffff, #f59e0b);
+  background-size: 400% 400%;
+  animation: swirl-circular 1.5s ease-in-out infinite;
 } 
