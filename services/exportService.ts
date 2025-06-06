@@ -87,7 +87,14 @@ export function exportToCsv(processedPoles: ProcessedPole[], fileName: string = 
       if (value === null || value === undefined) {
         value = 'N/A';
       }
-      const stringValue = String(value);
+      
+      // Add % symbol only to editable SPIDA percentage columns (display columns already have %)
+      let stringValue = String(value);
+      if ((col.key === 'editableSpidaExistingPct' || col.key === 'editableSpidaFinalPct') && 
+          stringValue !== 'N/A' && stringValue !== '') {
+        stringValue = stringValue + '%';
+      }
+      
       if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
         return `"${stringValue.replace(/"/g, '""')}"`;
       }
@@ -130,17 +137,41 @@ export function exportKatapultAttributeUpdateExcel(
 
   const dataForExcel = spidaPolesForExport.map(p => {
     const spidaPoleData = p.spida!; // Already filtered, so spida is non-null
+    
+    // Format percentage values with % symbol
+    const formatPercentage = (value: string | undefined) => {
+      if (!value || value === 'N/A' || value === '') return 'N/A';
+      return value + '%';
+    };
+    
     return {
       'Latitude': spidaPoleData.coords?.lat?.toFixed(6) ?? 'N/A',
       'Longitude': spidaPoleData.coords?.lon?.toFixed(6) ?? 'N/A',
-      'Existing Loading %': p.editableSpidaExistingPct || 'N/A',
-      'Final Loading %': p.editableSpidaFinalPct || 'N/A',
+      'Existing Loading %': formatPercentage(p.editableSpidaExistingPct),
+      'Final Loading %': formatPercentage(p.editableSpidaFinalPct),
       'Pole Spec': p.editableSpidaSpec || 'N/A',
       'Stress MR Notes': '', // Empty as requested
     };
   });
 
   const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
+  
+  // Format percentage columns as text to preserve % symbols
+  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+  for (let row = range.s.r + 1; row <= range.e.r; row++) {
+    // Column C (Existing Loading %) - index 2
+    const cellC = XLSX.utils.encode_cell({ r: row, c: 2 });
+    if (worksheet[cellC] && worksheet[cellC].v !== 'N/A') {
+      worksheet[cellC].t = 's'; // Set cell type to string
+    }
+    
+    // Column D (Final Loading %) - index 3  
+    const cellD = XLSX.utils.encode_cell({ r: row, c: 3 });
+    if (worksheet[cellD] && worksheet[cellD].v !== 'N/A') {
+      worksheet[cellD].t = 's'; // Set cell type to string
+    }
+  }
+  
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "SPIDA_Attributes");
 
