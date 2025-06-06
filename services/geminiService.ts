@@ -1,64 +1,38 @@
-import { GEMINI_CONFIG } from './config';
-
-interface GeminiRequest {
-  contents: Array<{
-    parts: Array<{
-      text: string;
-    }>;
-  }>;
-}
-
-interface GeminiResponse {
-  candidates: Array<{
-    content: {
-      parts: Array<{
-        text: string;
-      }>;
-    };
-  }>;
-}
+// Configuration for Google Gemini API via Netlify Functions
+// This provides secure API access without exposing keys to the client
 
 export class GeminiService {
-  private apiKey: string;
   private baseUrl: string;
-  private model: string;
 
-  constructor(apiKey?: string) {
-    this.apiKey = apiKey || GEMINI_CONFIG.API_KEY;
-    this.baseUrl = GEMINI_CONFIG.BASE_URL;
-    this.model = GEMINI_CONFIG.MODEL;
+  constructor() {
+    // Use Netlify function endpoints (will be /.netlify/functions/ in production)
+    this.baseUrl = process.env.NODE_ENV === 'production' 
+      ? '/.netlify/functions' 
+      : 'http://localhost:8888/.netlify/functions';
   }
 
-  async generateAnalysis(prompt: string): Promise<string> {
-    const request: GeminiRequest = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            }
-          ]
-        }
-      ]
-    };
-
+  async generateAnalysis(prompt: string, analysisType?: string): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`, {
+      const response = await fetch(`${this.baseUrl}/gemini-analysis`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request)
+        body: JSON.stringify({ 
+          prompt,
+          analysisType: analysisType || 'general'
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API error: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
 
-      const data: GeminiResponse = await response.json();
-      return data.candidates[0]?.content?.parts[0]?.text || 'No response generated';
+      const data = await response.json();
+      return data.result || 'No response generated';
     } catch (error) {
-      console.error('Error calling Gemini API:', error);
+      console.error('Error calling Netlify function:', error);
       throw error;
     }
   }
@@ -89,7 +63,7 @@ Please provide:
 Format your response in clear sections with bullet points where appropriate.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'match-data');
   }
 
   async analyzeSpecificationMismatches(specData: any): Promise<string> {
@@ -109,7 +83,7 @@ As a utility engineering expert, provide:
 Focus on actionable insights for field engineers and project managers.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'spec-mismatches');
   }
 
   async generateExecutiveSummary(projectData: any): Promise<string> {
@@ -130,7 +104,7 @@ Provide a professional executive summary including:
 Write in professional language suitable for project stakeholders and executives.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'executive-summary');
   }
 
   async identifyAnomalies(poleData: any[]): Promise<string> {
@@ -150,7 +124,7 @@ Identify:
 Provide specific pole IDs/SCIDs where possible and explain why each anomaly is significant.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'anomaly-detection');
   }
 
   // NEW AI FEATURES
@@ -210,7 +184,7 @@ Focus on actionable field guidance and crew safety.
       `
     };
 
-    return this.generateAnalysis(prompts[analysisType]);
+    return this.generateAnalysis(prompts[analysisType], `detailed-report-${analysisType}`);
   }
 
   async validateDataQuality(poleData: any[]): Promise<string> {
@@ -233,7 +207,7 @@ Analyze and report:
 Provide specific examples and quantitative assessments where possible.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'data-validation');
   }
 
   async generatePredictiveInsights(poleData: any[], historicalData?: any): Promise<string> {
@@ -258,7 +232,7 @@ Provide predictive analysis including:
 Focus on actionable predictions with confidence levels and timeframes.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'predictive-insights');
   }
 
   async generateSmartRecommendations(poleData: any[], userPreferences?: any): Promise<string> {
@@ -283,7 +257,7 @@ Provide smart recommendations for:
 Prioritize recommendations by impact and ease of implementation.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'smart-recommendations');
   }
 
   async enhancedContextualChat(userMessage: string, projectContext: any, chatHistory: any[]): Promise<string> {
@@ -309,7 +283,7 @@ Provide a detailed, context-aware response that:
 If the user asks about specific poles, reference their actual pole IDs/SCIDs. If they ask about patterns, analyze their actual data patterns.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'contextual-chat');
   }
 
   async generateWorkflowSuggestions(currentStage: string, projectData: any): Promise<string> {
@@ -332,6 +306,6 @@ Based on the current stage and data state, suggest:
 Provide specific, actionable guidance tailored to their current situation.
     `;
 
-    return this.generateAnalysis(prompt);
+    return this.generateAnalysis(prompt, 'workflow-suggestions');
   }
 } 

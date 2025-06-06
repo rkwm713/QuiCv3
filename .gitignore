@@ -22,3 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables (SECURITY: Never commit API keys!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Netlify
+.netlify
+
+# API Keys and sensitive config files
+config.ts
+**/config.ts
+**/*config*.ts
+api-keys.txt
+secrets.txt
+
+# Local Netlify folder
+.netlify
