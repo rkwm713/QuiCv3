@@ -12,7 +12,7 @@ const decrypt = (encryptedText) => {
 const getApiKey = async () => {
   try {
     // Initialize Neon connection
-    const sql = neon(process.env.NEON_DATABASE_URL);
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
     
     // Query for the API key
     const [keyRecord] = await sql`

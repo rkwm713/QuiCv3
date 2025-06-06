@@ -1,24 +1,28 @@
 // Test script to verify Neon connection
 // Run this locally with: node test-neon-connection.js
 
-const { neon } = require('@neondatabase/serverless');
+import { config } from 'dotenv';
+import { neon } from '@neondatabase/serverless';
+
+// Load environment variables from .env.local
+config({ path: '.env.local' });
 
 async function testNeonConnection() {
   console.log('🔍 Testing Neon database connection...\n');
 
   try {
-    // Check if NEON_DATABASE_URL is available
-    const neonUrl = process.env.NEON_DATABASE_URL;
+    // Check if NETLIFY_DATABASE_URL is available
+    const neonUrl = process.env.NETLIFY_DATABASE_URL;
     
     if (!neonUrl) {
-      console.log('❌ NEON_DATABASE_URL not found in environment variables');
+      console.log('❌ NETLIFY_DATABASE_URL not found in environment variables');
       console.log('💡 You need to:');
       console.log('   1. Install Neon extension in Netlify');
-      console.log('   2. Or add NEON_DATABASE_URL to your .env.local file');
+      console.log('   2. Or add NETLIFY_DATABASE_URL to your .env.local file');
       return false;
     }
 
-    console.log('✅ NEON_DATABASE_URL found');
+    console.log('✅ NETLIFY_DATABASE_URL found');
     
     // Test connection
     const sql = neon(neonUrl);

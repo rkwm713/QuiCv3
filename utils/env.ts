@@ -10,7 +10,7 @@ export interface EnvironmentConfig {
   geminiApiKey?: string; // Optional since it might come from Netlify Blobs or Neon
   adminToken?: string;
   encryptionKey?: string;
-  neonDatabaseUrl?: string;
+  netlifyDatabaseUrl?: string;
   storageType: 'blobs' | 'neon' | 'env-only';
 }
 
@@ -31,11 +31,11 @@ class EnvironmentValidator {
 
   private loadAndValidateConfig(): EnvironmentConfig {
     const nodeEnv = process.env.NODE_ENV || 'development';
-    const neonDatabaseUrl = process.env.NEON_DATABASE_URL;
+    const netlifyDatabaseUrl = process.env.NETLIFY_DATABASE_URL;
     
     // Determine storage type based on available configuration
     let storageType: 'blobs' | 'neon' | 'env-only' = 'env-only';
-    if (neonDatabaseUrl) {
+    if (netlifyDatabaseUrl) {
       storageType = 'neon';
     } else if (process.env.ADMIN_TOKEN && process.env.ENCRYPTION_KEY) {
       storageType = 'blobs';
@@ -50,7 +50,7 @@ class EnvironmentValidator {
       geminiApiKey: process.env.GEMINI_API_KEY,
       adminToken: process.env.ADMIN_TOKEN,
       encryptionKey: process.env.ENCRYPTION_KEY,
-      neonDatabaseUrl,
+      netlifyDatabaseUrl,
       storageType,
     };
 
@@ -101,7 +101,7 @@ class EnvironmentValidator {
       hasGeminiKey: !!config.geminiApiKey,
       hasAdminToken: !!config.adminToken,
       hasEncryptionKey: !!config.encryptionKey,
-      hasNeonUrl: !!config.neonDatabaseUrl,
+      hasNetlifyDbUrl: !!config.netlifyDatabaseUrl,
     });
   }
 
@@ -129,7 +129,7 @@ export const isDevelopment = (): boolean => envConfig.getConfig().isDevelopment;
 export const isProduction = (): boolean => envConfig.getConfig().isProduction;
 export const isSecurelyConfigured = (): boolean => envConfig.isSecurelyConfigured();
 export const getStorageType = (): 'blobs' | 'neon' | 'env-only' => envConfig.getConfig().storageType;
-export const isNeonConfigured = (): boolean => !!envConfig.getConfig().neonDatabaseUrl;
+export const isNeonConfigured = (): boolean => !!envConfig.getConfig().netlifyDatabaseUrl;
 export const isBlobsConfigured = (): boolean => envConfig.getConfig().storageType === 'blobs';
 
 // Runtime validation function
@@ -146,8 +146,8 @@ export const validateEnvironment = (): void => {
 export const validateStorageConfig = (): void => {
   const config = envConfig.getConfig();
   
-  if (config.storageType === 'neon' && !config.neonDatabaseUrl) {
-    throw new Error('Neon storage selected but NEON_DATABASE_URL not configured');
+  if (config.storageType === 'neon' && !config.netlifyDatabaseUrl) {
+    throw new Error('Neon storage selected but NETLIFY_DATABASE_URL not configured');
   }
   
   if (config.storageType === 'blobs' && (!config.adminToken || !config.encryptionKey)) {

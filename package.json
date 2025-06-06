@@ -14,6 +14,7 @@
     "@neondatabase/serverless": "^0.9.0",
     "@netlify/blobs": "^8.1.0",
     "@types/leaflet": "^1.9.18",
+    "dotenv": "^16.5.0",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

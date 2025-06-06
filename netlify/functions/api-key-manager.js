@@ -14,7 +14,7 @@ const decrypt = (encryptedText) => {
 };
 
 // Initialize Neon database connection
-const sql = neon(process.env.NEON_DATABASE_URL);
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
 // Create table if it doesn't exist
 const initializeDatabase = async () => {
@@ -52,7 +52,7 @@ export const handler = async (event, context) => {
   }
 
   // Validate required environment variables
-  if (!process.env.NEON_DATABASE_URL) {
+  if (!process.env.NETLIFY_DATABASE_URL) {
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Database not configured' })
