@@ -1,0 +1,6 @@
+{
+  "name": "QuiC - SPIDA ↔ Katapult Comparison Tool",
+  "description": "A comprehensive comparison tool that analyzes and reconciles data between SPIDA (utility pole analysis software) and Katapult (pole design software) datasets. The application performs intelligent matching, identifies discrepancies, and allows users to edit and export reconciled data.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
