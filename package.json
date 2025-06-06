@@ -14,6 +14,8 @@
     "@neondatabase/serverless": "^0.9.0",
     "@netlify/blobs": "^8.1.0",
     "@types/leaflet": "^1.9.18",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
     "dotenv": "^16.5.0",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",
@@ -23,8 +25,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/react": "^18.2.43",
-    "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
