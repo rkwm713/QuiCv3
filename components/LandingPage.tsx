@@ -226,7 +226,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp }) => {
     // Create moving lightning segments
     const segmentCount = 40;
     const perimeter = 2 * (width + height);
-    const segmentLength = perimeter / segmentCount;
     
     context.beginPath();
     
