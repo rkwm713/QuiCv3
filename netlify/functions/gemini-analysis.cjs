@@ -1,5 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { neon } = require('@neondatabase/serverless');
+// Removed Neon – now using Supabase REST API
 
 // Helper function to decrypt API key (matches api-key-manager-neon.js)
 const decrypt = (encryptedText) => {
@@ -8,36 +8,42 @@ const decrypt = (encryptedText) => {
   return Buffer.from(encryptedText, 'base64').toString();
 };
 
-// Helper function to get API key from Neon database
+// Helper to get API key from Supabase (fallback to env var)
 const getApiKey = async () => {
   try {
-    // Check if database URL is configured
-    if (!process.env.NETLIFY_DATABASE_URL) {
-      console.log('No database URL configured, using environment variable fallback');
+    const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.log('Supabase credentials not configured, using environment variable fallback');
       return process.env.GEMINI_API_KEY;
     }
 
-    // Initialize Neon connection
-    const sql = neon(process.env.NETLIFY_DATABASE_URL);
-    
-    // Query for the API key
-    const [keyRecord] = await sql`
-      SELECT encrypted_value 
-      FROM api_keys 
-      WHERE key_name = 'gemini-api-key'
-    `;
-    
-    if (!keyRecord) {
-      // Fallback to environment variable for backward compatibility
-      console.log('No API key found in database, falling back to environment variable');
+    const url = `${SUPABASE_URL}/rest/v1/api_keys?select=encrypted_value&key_name=eq.gemini-api-key&limit=1`;
+
+    const response = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`Supabase REST error: ${response.status}`);
       return process.env.GEMINI_API_KEY;
     }
-    
-    return decrypt(keyRecord.encrypted_value);
+
+    const json = await response.json();
+
+    if (!Array.isArray(json) || json.length === 0) {
+      console.log('No API key found in Supabase, falling back to environment variable');
+      return process.env.GEMINI_API_KEY;
+    }
+
+    return decrypt(json[0].encrypted_value);
   } catch (error) {
-    console.error('Error retrieving API key from Neon database:', error);
-    console.log('Falling back to environment variable');
-    // Fallback to environment variable
+    console.error('Error retrieving API key from Supabase:', error);
     return process.env.GEMINI_API_KEY;
   }
 };

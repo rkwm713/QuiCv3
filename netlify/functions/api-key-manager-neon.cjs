@@ -1,5 +1,3 @@
-import { neon } from '@neondatabase/serverless';
-
 // Simple encryption/decryption utilities (same as before)
 const encrypt = (text) => {
   const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
@@ -13,32 +11,23 @@ const decrypt = (encryptedText) => {
   return Buffer.from(encryptedText, 'base64').toString();
 };
 
-// Initialize Neon database connection
-const sql = neon(process.env.NEON_DATABASE_URL);
+// Helper headers & utility for Supabase
+const supabaseHeaders = () => {
+  const { SUPABASE_SERVICE_ROLE_KEY } = process.env;
+  return {
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+};
 
-// Create table if it doesn't exist
-const initializeDatabase = async () => {
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS api_keys (
-        id SERIAL PRIMARY KEY,
-        key_name VARCHAR(255) UNIQUE NOT NULL,
-        encrypted_value TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-    
-    // Create an index on key_name for faster lookups
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_api_keys_name ON api_keys(key_name)
-    `;
-    
-    console.log('✅ Database initialized successfully');
-  } catch (error) {
-    console.error('❌ Database initialization error:', error);
-    throw error;
-  }
+const supabaseRequest = async (method, path, body) => {
+  const { SUPABASE_URL } = process.env;
+  if (!SUPABASE_URL) throw new Error('SUPABASE_URL not set');
+  const options = { method, headers: supabaseHeaders() };
+  if (body) options.body = JSON.stringify(body);
+  return fetch(`${SUPABASE_URL}${path}`, options);
 };
 
 export const handler = async (event, context) => {
@@ -51,45 +40,32 @@ export const handler = async (event, context) => {
     };
   }
 
-  // Validate required environment variables
-  if (!process.env.NEON_DATABASE_URL) {
+  // Validate Supabase vars
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Database not configured' })
+      body: JSON.stringify({ error: 'Supabase not configured' })
     };
   }
 
   try {
-    // Initialize database on first run
-    await initializeDatabase();
-
     const keyName = 'gemini-api-key'; // Fixed key name for this implementation
 
     switch (event.httpMethod) {
       case 'GET':
         // Retrieve API key
-        const [keyRecord] = await sql`
-          SELECT encrypted_value, updated_at 
-          FROM api_keys 
-          WHERE key_name = ${keyName}
-        `;
-
-        if (!keyRecord) {
-          return {
-            statusCode: 404,
-            body: JSON.stringify({ error: 'API key not found' })
-          };
+        {
+          const res = await supabaseRequest('GET', `/rest/v1/api_keys?select=encrypted_value,updated_at&key_name=eq.${keyName}&limit=1`);
+          if (!res.ok) {
+            return {statusCode:500, body:JSON.stringify({error:'Database error'})};
+          }
+          const json = await res.json();
+          if (!Array.isArray(json) || json.length===0){
+            return {statusCode:404, body:JSON.stringify({error:'API key not found'})};
+          }
+          const decryptedKey = decrypt(json[0].encrypted_value);
+          return {statusCode:200, headers:{'Content-Type':'application/json'}, body: JSON.stringify({key: decryptedKey, lastUpdated: json[0].updated_at})};
         }
-
-        const decryptedKey = decrypt(keyRecord.encrypted_value);
-        return {
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            key: decryptedKey,
-            lastUpdated: keyRecord.updated_at
-          })
-        };
 
       case 'POST':
         // Store/update API key
@@ -103,15 +79,11 @@ export const handler = async (event, context) => {
 
         const encryptedKey = encrypt(apiKey);
         
-        // Use UPSERT (INSERT ... ON CONFLICT)
-        await sql`
-          INSERT INTO api_keys (key_name, encrypted_value, updated_at)
-          VALUES (${keyName}, ${encryptedKey}, CURRENT_TIMESTAMP)
-          ON CONFLICT (key_name) 
-          DO UPDATE SET 
-            encrypted_value = EXCLUDED.encrypted_value,
-            updated_at = CURRENT_TIMESTAMP
-        `;
+        // Use UPSERT
+        {
+          const res = await supabaseRequest('POST', '/rest/v1/api_keys?on_conflict=key_name&return=representation', [{key_name:keyName, encrypted_value: encryptedKey}]);
+          if(!res.ok){ return {statusCode:500, body:JSON.stringify({error:'Failed to store key'})};}
+        }
 
         return {
           statusCode: 200,
@@ -120,17 +92,11 @@ export const handler = async (event, context) => {
 
       case 'DELETE':
         // Delete API key
-        const deleteResult = await sql`
-          DELETE FROM api_keys WHERE key_name = ${keyName}
-        `;
-
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ 
-            message: 'API key deleted',
-            rowsAffected: deleteResult.count
-          })
-        };
+        {
+          const res = await supabaseRequest('DELETE', `/rest/v1/api_keys?key_name=eq.${keyName}`);
+          if(!res.ok){return {statusCode:500, body:JSON.stringify({error:'Failed to delete key'})};}
+          return {statusCode:200, body:JSON.stringify({message:'API key deleted'})};
+        }
 
       case 'OPTIONS':
         // Handle CORS preflight

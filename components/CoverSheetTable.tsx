@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ProcessedPole, IntermediateSpidaPole } from '../types';
-import { GeminiService } from '../services/geminiService';
+import { OpenAIService } from '../services/openaiService';
 import { getAnalysisLoadPercent } from '../services/dataProcessingService';
 
 interface CoverSheetRow {
@@ -21,7 +21,7 @@ interface CoverSheetTableProps {
 export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data, rawSpidaData }) => {
   const [coverSheetData, setCoverSheetData] = useState<CoverSheetRow[]>([]);
   const [isGeneratingAllNotes, setIsGeneratingAllNotes] = useState(false);
-  const geminiService = new GeminiService();
+  const aiService = new OpenAIService();
 
   // Transform ProcessedPole data to CoverSheet format
   const transformedData = useMemo(() => {
@@ -183,7 +183,7 @@ Examples:
 Keep it professional, concise, and specific to the actual changes observed.
         `;
 
-        notes = await geminiService.generateAnalysis(prompt, 'coversheet-notes');
+        notes = await aiService.generateAnalysis(prompt, 'coversheet-notes');
       } catch (error) {
         console.warn('AI generation failed, using rule-based fallback:', error);
         

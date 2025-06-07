@@ -13,6 +13,8 @@ export interface EnvironmentConfig {
   netlifyDatabaseUrl?: string;
   storageType: 'blobs' | 'neon' | 'env-only';
   isServerSide: boolean;
+  mem0ApiKey?: string;
+  smitheryApiKey?: string;
 }
 
 class EnvironmentValidator {
@@ -62,6 +64,8 @@ class EnvironmentValidator {
       netlifyDatabaseUrl,
       storageType,
       isServerSide,
+      mem0ApiKey: isServerSide ? process.env.MEM0_API_KEY : undefined,
+      smitheryApiKey: isServerSide ? process.env.SMITHERY_API_KEY : undefined,
     };
 
     this.validateConfig(config);
@@ -123,6 +127,8 @@ class EnvironmentValidator {
         hasAdminToken: !!config.adminToken,
         hasEncryptionKey: !!config.encryptionKey,
         hasNetlifyDbUrl: !!config.netlifyDatabaseUrl,
+        hasMem0ApiKey: !!config.mem0ApiKey,
+        hasSmitheryApiKey: !!config.smitheryApiKey,
       });
     }
   }
@@ -164,6 +170,8 @@ export const isSecurelyConfigured = (): boolean => envConfig.isSecurelyConfigure
 export const getStorageType = (): 'blobs' | 'neon' | 'env-only' => envConfig.getConfig().storageType;
 export const isNeonConfigured = (): boolean => !!envConfig.getConfig().netlifyDatabaseUrl;
 export const isBlobsConfigured = (): boolean => envConfig.getConfig().storageType === 'blobs';
+export const getMem0ApiKey = (): string | undefined => envConfig.getConfig().mem0ApiKey;
+export const getSmitheryApiKey = (): string | undefined => envConfig.getConfig().smitheryApiKey;
 
 // Runtime validation function (client-side safe)
 export const validateEnvironment = (): void => {

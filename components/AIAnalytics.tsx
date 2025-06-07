@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GeminiService } from '../services/geminiService';
+import { OpenAIService } from '../services/openaiService';
 
 interface AIAnalyticsProps {
   comparisonData?: any;
@@ -12,7 +12,7 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
   poleData = [],
   hasComparisonRun = false 
 }) => {
-  const [geminiService] = useState(() => new GeminiService());
+  const [aiService] = useState(() => new OpenAIService());
   const [activeAnalysis, setActiveAnalysis] = useState<'overview' | 'mismatches' | 'anomalies' | 'reports' | 'validation' | 'predictions' | 'recommendations' | 'chat'>('overview');
   const [analysisResults, setAnalysisResults] = useState<{
     overview?: string;
@@ -43,13 +43,13 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
       
       switch (type) {
         case 'overview':
-          result = await geminiService.analyzeMatchData(comparisonData || {});
+          result = await aiService.analyzeMatchData(comparisonData || {});
           break;
         case 'mismatches':
-          result = await geminiService.analyzeSpecificationMismatches(comparisonData?.mismatches || {});
+          result = await aiService.analyzeSpecificationMismatches(comparisonData?.mismatches || {});
           break;
         case 'anomalies':
-          result = await geminiService.identifyAnomalies(poleData);
+          result = await aiService.identifyAnomalies(poleData);
           break;
       }
       
@@ -76,7 +76,7 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
       
       switch (type) {
         case 'reports':
-          result = await geminiService.generateDetailedReport(
+          result = await aiService.generateDetailedReport(
             { comparisonData, poleData, hasComparisonRun }, 
             selectedReportType
           );
@@ -86,15 +86,15 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
           }));
           break;
         case 'validation':
-          result = await geminiService.validateDataQuality(poleData);
+          result = await aiService.validateDataQuality(poleData);
           setAnalysisResults(prev => ({ ...prev, validation: result }));
           break;
         case 'predictions':
-          result = await geminiService.generatePredictiveInsights(poleData);
+          result = await aiService.generatePredictiveInsights(poleData);
           setAnalysisResults(prev => ({ ...prev, predictions: result }));
           break;
         case 'recommendations':
-          result = await geminiService.generateSmartRecommendations(poleData);
+          result = await aiService.generateSmartRecommendations(poleData);
           setAnalysisResults(prev => ({ ...prev, recommendations: result }));
           break;
       }
@@ -122,7 +122,7 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
         currentAnalysis: activeAnalysis
       };
 
-      const response = await geminiService.enhancedContextualChat(
+      const response = await aiService.enhancedContextualChat(
         userMessage, 
         projectContext, 
         chatHistory
@@ -276,7 +276,7 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
             <span>Try Data Validation</span>
           </button>
           <div className="inline-flex items-center space-x-2 text-emerald-400 text-sm">
-            <span>Powered by Google Gemini 2.5 Pro</span>
+            <span>Powered by OpenAI GPT-4o</span>
             <div className="flex space-x-1">
               <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse"></div>
               <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse delay-100"></div>
@@ -295,7 +295,7 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">AI Analytics</h2>
-            <p className="text-slate-400">Powered by Google Gemini 2.5 Pro Preview</p>
+            <p className="text-slate-400">Powered by OpenAI GPT-4o</p>
           </div>
           <div className="flex space-x-2">
             <button
@@ -462,7 +462,7 @@ const AIAnalytics: React.FC<AIAnalyticsProps> = ({
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-2">Analyzing Your Data</h3>
-                <p className="text-slate-400">Gemini AI is processing your pole data...</p>
+                <p className="text-slate-400">OpenAI is processing your pole data...</p>
               </div>
             ) : (() => {
               let content = '';
