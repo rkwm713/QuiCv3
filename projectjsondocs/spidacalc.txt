@@ -1,0 +1,59 @@
+Below is a breakdown of how each column in your attachment-detail table maps back into the SPIDAcalc JSON (and/or how you’d compute it), so you can locate or regenerate exactly the same values:
+
+| Column    | JSON Location (or Computation)                                                                      | Notes                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Owner** | `leads[].locations[].designs[].structure.pole.owner`                                                | This is the pole owner (e.g. “CPS ENERGY”). It lives under each design’s `structure.pole` object. |
+| **Type**  | - **Wires/Guys**: `leads[].locations[].designs[].wireEndPoints[].layerType` (e.g. “Full (Tension)”) |                                                                                                   |
+
+* **Insulators/Equipment**: `leads[].locations[].designs[].insulators[].type` or `…equipments[].type` | For conductors and guys you’ll see `layerType`; for discrete hardware you’ll find the catalog-driven `type` field on each insulator or equipment entry. |
+  \| **Size**    | - **Wires/Guys**: `…wireEndPoints[].conductorSize` (e.g. “6 ACSR”)
+* **Insulators**: `…insulators[].catalogItem.displayName` (e.g. “24.9 kV Pin Type Insulator (Pole Top)”)
+* **Other Equipment**: similarly from `catalogItem.displayName`                                  | Every hardware object carries a reference to your client-library item; use its `displayName` (or `size` field when present).                                 |
+  \| **Height**  | `leads[].locations[].designs[].wireEndPoints[].attachmentHeight.value`
+  (or for gear: `…insulators[].position.z.value` / `…equipments[].position.z.value`)          | Stored in native units (typically metres).  You’ll convert to feet/inches by
+
+```js
+feet = Math.floor(metres * METERS_TO_INCHES/INCHES_IN_FOOT);
+inches = Math.round((metres * METERS_TO_INCHES) % INCHES_IN_FOOT);
+```
+
+to get “33′ 5″” style output.                                                |
+\| **Offset / Lead** | - For span-attachments (wires, guys): compute the horizontal distance between this pole’s `geographicCoordinate` and the *previous* (or *next*) pole’s coords.
+
+* For top-of-pole or standalone hardware: leave as “N/A”.        | Your script’s `calculateSpanLength( thisPole, otherPole )` utility returns the lead in feet.                                                                  |
+  \| **Direction**| `leads[].locations[].designs[].wireEndPoints[].directionDegrees`                                                                                | The azimuth (0–360°) of each span or conductor end, already computed by SPIDA during import.                                                                 |
+  \| **Related** | `leads[].locations[].designs[].wireEndPoints[].relatedItems` (array of IDs)                                                                      | Lists the other end(s) of the same conductor or guy, e.g. “Wire#1, Wire#2”.                                                                                    |
+  \| **ID**      | - **Wires/Guys**: `…wireEndPoints[].id`
+* **Insulators**: `…insulators[].id`
+* **Other Equipment**: `…equipments[].id`                                                                  | A unique identifier for that attachment instance (e.g. “Insulator#1”, “WEP#1”).                                                                               |
+
+---
+
+### How to “see” these in your JSON
+
+1. **Open your SPIDAcalc JSON** and drill into:
+
+   ```
+   leads[0]
+     ↳ locations[ indexOfPole ]
+       ↳ designs[ indexOfDesign ]        ← measured vs. recommended
+         ↳ structure.pole.owner
+         ↳ wireEndPoints[]                ← all conductor/guy endpoints
+         ↳ insulators[]                   ← pole-mounted insulators
+         ↳ equipments[]                   ← clamps, transformers, etc.
+   ```
+2. **For each `wireEndPoint`**:
+
+   * Read its `attachmentHeight.value` → convert to ft/in.
+   * Read `directionDegrees` → your “Direction” column.
+   * Compute distance to the previous/next location → your “Offset/Lead”.
+   * List `relatedItems` → “Related” column.
+3. **For each `insulators[]` or `equipments[]` entry**:
+
+   * Read `position.z.value` → height.
+   * Use `catalogItem.displayName` → size/type.
+   * The pole’s owner is still at `structure.pole.owner`.
+   * They won’t have an offset/lead, so show “N/A.”
+4. **ID fields** come straight from each object’s `id`.
+
+By following those paths (and running your existing conversion utilities for units and distances), you’ll reproduce exactly the columns in your screenshot.

@@ -37,26 +37,34 @@ const supabaseRequest = async (method, path, body) => {
   return fetch(url, options);
 };
 
-export const handler = async (event, context) => {
+exports.handler = async (event, context) => {
   // Only allow admin access
   const adminToken = event.headers['x-admin-token'];
   if (adminToken !== process.env.ADMIN_TOKEN) {
     return {
       statusCode: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({ error: 'Unauthorized' })
     };
   }
 
-  // Validate required environment variables
-  if (!process.env.NETLIFY_DATABASE_URL) {
+  // Validate required environment variables for Supabase
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Database not configured' })
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'Supabase configuration missing' })
     };
   }
 
   try {
-    const keyName = 'gemini-api-key'; // Fixed key name for this implementation
+    const keyName = 'openai-api-key'; // Changed from 'gemini-api-key' to 'openai-api-key'
 
     switch (event.httpMethod) {
       case 'GET':
@@ -65,16 +73,27 @@ export const handler = async (event, context) => {
           const res = await supabaseRequest('GET', `/rest/v1/api_keys?select=encrypted_value,updated_at&key_name=eq.${keyName}&limit=1`);
           if (!res.ok) {
             console.error('Supabase fetch error', res.status);
-            return { statusCode: 500, body: JSON.stringify({ error: 'Database error' }) };
+            return { 
+              statusCode: 500, 
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+              body: JSON.stringify({ error: 'Database error' }) 
+            };
           }
           const json = await res.json();
           if (!Array.isArray(json) || json.length === 0) {
-            return { statusCode: 404, body: JSON.stringify({ error: 'API key not found' }) };
+            return { 
+              statusCode: 404, 
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+              body: JSON.stringify({ error: 'API key not found' }) 
+            };
           }
           const decryptedKey = decrypt(json[0].encrypted_value);
           return {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
             body: JSON.stringify({ key: decryptedKey, lastUpdated: json[0].updated_at })
           };
         }
@@ -85,6 +104,10 @@ export const handler = async (event, context) => {
         if (!apiKey || typeof apiKey !== 'string') {
           return {
             statusCode: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
             body: JSON.stringify({ error: 'Valid API key required' })
           };
         }
@@ -97,12 +120,20 @@ export const handler = async (event, context) => {
           const res = await supabaseRequest('POST', '/rest/v1/api_keys?on_conflict=key_name&return=representation', bodyArr);
           if (!res.ok) {
             console.error('Supabase upsert error', res.status);
-            return { statusCode: 500, body: JSON.stringify({ error: 'Failed to store key' }) };
+            return { 
+              statusCode: 500, 
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+              body: JSON.stringify({ error: 'Failed to store key' }) 
+            };
           }
         }
 
         return {
           statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
           body: JSON.stringify({ message: 'API key stored successfully' })
         };
 
@@ -111,9 +142,17 @@ export const handler = async (event, context) => {
         {
           const res = await supabaseRequest('DELETE', `/rest/v1/api_keys?key_name=eq.${keyName}`);
           if (!res.ok) {
-            return { statusCode: 500, body: JSON.stringify({ error: 'Failed to delete key' }) };
+            return { 
+              statusCode: 500, 
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+              body: JSON.stringify({ error: 'Failed to delete key' }) 
+            };
           }
-          return { statusCode: 200, body: JSON.stringify({ message: 'API key deleted' }) };
+          return { 
+            statusCode: 200, 
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ message: 'API key deleted' }) 
+          };
         }
 
       case 'OPTIONS':
@@ -131,6 +170,10 @@ export const handler = async (event, context) => {
       default:
         return {
           statusCode: 405,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
           body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -138,6 +181,10 @@ export const handler = async (event, context) => {
     console.error('API Key Manager Error:', error);
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({ 
         error: 'Internal server error',
         details: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
