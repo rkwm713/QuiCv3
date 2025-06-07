@@ -116,14 +116,15 @@ exports.handler = async (event, context) => {
 
     const openai = new OpenAI({ apiKey });
 
+    // Reduce timeout to 8 seconds to fit within Netlify's 10-second limit
     const response = await Promise.race([
       openai.chat.completions.create({
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 800
+        max_tokens: 500  // Reduced from 800 to get faster responses
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout after 25 seconds')), 25000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout after 8 seconds')), 8000))
     ]);
 
     const text = response.choices[0].message.content;
