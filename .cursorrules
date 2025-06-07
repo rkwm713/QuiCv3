@@ -1,0 +1,287 @@
+# QuiC Project Cursor Rules
+
+## Project Overview
+QuiC is a sophisticated web application for comparing and reconciling utility pole data between SPIDA (Structural Pole Inspection and Design Analysis) and Katapult systems. It provides intelligent matching algorithms, interactive visualizations, and AI-powered analytics.
+
+## Tech Stack
+- **Frontend**: React 18.2, TypeScript 5.2, Vite 5.0
+- **Styling**: Tailwind CSS 3.3 with custom animations
+- **Mapping**: Leaflet 1.9.4 with React-Leaflet
+- **AI**: Google Gemini 2.0 Flash (upgrading to 2.5 Pro)
+- **Backend**: Netlify Functions (serverless)
+- **Database**: Neon PostgreSQL (for API key storage)
+- **State Management**: React hooks and local state
+- **Data Processing**: Custom algorithms for multi-tier matching
+
+## Code Style and Conventions
+
+### TypeScript
+- Use strict TypeScript with comprehensive type definitions
+- All data structures must have corresponding interfaces in `types.ts`
+- Prefer explicit return types for functions
+- Use enums for constants with fixed values (e.g., MatchTier)
+- Null/undefined handling: Use optional chaining and nullish coalescing
+
+### React Components
+- Use functional components with TypeScript interfaces for props
+- Component files should be in PascalCase (e.g., `DataTable.tsx`)
+- Keep components focused and single-responsibility
+- Use custom hooks for complex logic (prefix with `use`)
+- Memoize expensive computations with `useMemo`
+- Callbacks should use `useCallback` for optimization
+
+### File Organization
+```
+/components/        # React UI components
+  /height-comparison/  # Feature-specific component folders
+/services/         # Business logic and data processing
+/hooks/           # Custom React hooks
+/utils/           # Utility functions
+/netlify/functions/  # Serverless functions
+/types.ts         # Centralized TypeScript definitions
+/constants.ts     # Application constants
+```
+
+### Naming Conventions
+- **Components**: PascalCase (e.g., `InteractiveMap`)
+- **Functions**: camelCase (e.g., `normalizeSpidaData`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `COORDINATE_MATCH_THRESHOLD_METERS`)
+- **Interfaces**: PascalCase with descriptive names (e.g., `ProcessedPole`)
+- **Files**: Match component name or use kebab-case for utilities
+
+## Data Flow Patterns
+
+### Data Processing Pipeline
+1. File upload → Parse JSON → Normalize data
+2. Run comparison → Generate ProcessedPole[] → Update UI
+3. User edits → Recalculate mismatches → Update state
+4. Export → Transform data → Generate file
+
+### State Management
+- Use local component state for UI-specific state
+- Lift state up to App.tsx for shared data
+- Consider React Context for deeply nested props (future improvement)
+- Avoid prop drilling beyond 2-3 levels
+
+## Component Patterns
+
+### Icon Components
+```typescript
+const IconName: React.FC = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="..." />
+  </svg>
+);
+```
+
+### Data Table Pattern
+- Use memoization for filtered/sorted data
+- Implement inline editing with controlled inputs
+- Highlight mismatches with conditional styling
+- Support sorting and filtering
+
+### Modal Pattern
+- Use portal rendering for modals
+- Include backdrop click to close
+- Proper focus management and accessibility
+
+## Styling Guidelines
+
+### Tailwind Classes
+- Use consistent spacing scale (p-4, space-x-2, etc.)
+- Dark theme by default with slate color palette
+- Custom colors: emerald (primary), cyan, yellow (warnings)
+- Animations: Use custom animations defined in index.css
+
+### Color Scheme
+- Background: slate-800/900 gradients
+- Text: slate-200/300 for primary, slate-400/500 for secondary
+- Accents: emerald-400, cyan-400, yellow-400
+- Errors: red-400/500
+- Success: green-400/500
+
+### Responsive Design
+- Mobile-first approach with md: and lg: breakpoints
+- Use grid and flexbox for layouts
+- Ensure tables are horizontally scrollable on mobile
+
+## API and Serverless Functions
+
+### Netlify Functions Pattern
+```javascript
+exports.handler = async (event, context) => {
+  // Validate HTTP method
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
+  
+  try {
+    // Process request
+    const result = await processData();
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result)
+    };
+  } catch (error) {
+    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+  }
+};
+```
+
+### Security Patterns
+- Store sensitive data (API keys) in Neon database or Netlify Blobs
+- Use encryption for stored secrets
+- Validate all inputs
+- Implement proper CORS headers
+- Use admin tokens for protected endpoints
+
+## Error Handling
+
+### Error Boundaries
+- Wrap main app in ErrorBoundary component
+- Show user-friendly error messages
+- Log errors appropriately (console in dev, service in prod)
+
+### Data Validation
+- Validate file formats before processing
+- Handle missing or malformed data gracefully
+- Show specific error messages for different failure types
+
+## Performance Guidelines
+
+### Optimization Strategies
+- Lazy load heavy components (maps, large tables)
+- Use React.memo for expensive components
+- Implement virtualization for large datasets
+- Debounce search inputs
+- Use Web Workers for heavy data processing (future)
+
+### Bundle Size
+- Use dynamic imports for large libraries
+- Tree-shake unused code
+- Minimize custom animations
+
+## Testing Approach (Future)
+
+### Test Structure
+```
+/__tests__/
+  /components/    # Component tests
+  /services/      # Service logic tests
+  /utils/         # Utility function tests
+  /integration/   # Integration tests
+```
+
+### Test Patterns
+- Unit test data processing functions
+- Integration test the comparison workflow
+- Snapshot test complex UI components
+- Mock external services (Gemini AI)
+
+## Documentation Standards
+
+### Component Documentation
+```typescript
+/**
+ * DataTable displays comparison results with inline editing
+ * @param data - Array of processed poles
+ * @param onEdit - Callback for editing pole data
+ * @param onViewDetails - Callback for viewing pole details
+ */
+```
+
+### Function Documentation
+- Document complex algorithms
+- Include examples for data transformations
+- Explain business logic decisions
+
+## Git Workflow
+
+### Commit Messages
+- Use conventional commits: feat:, fix:, docs:, style:, refactor:
+- Keep commits focused and atomic
+- Reference issues when applicable
+
+### Branch Naming
+- feature/description-of-feature
+- fix/issue-description
+- refactor/component-name
+
+## Environment Configuration
+
+### Required Environment Variables
+```
+ADMIN_TOKEN=              # For API key management
+ENCRYPTION_KEY=           # 32 chars for encryption
+NETLIFY_DATABASE_URL=     # Neon database connection
+GEMINI_API_KEY=          # Fallback API key
+```
+
+### Development Setup
+1. Copy `env.example` to `.env.local`
+2. Install dependencies: `npm install`
+3. Run dev server: `npm run dev`
+4. Test functions: `netlify dev`
+
+## UI/UX Patterns
+
+### Loading States
+- Show skeleton loaders for data
+- Use progress indicators for long operations
+- Provide status messages during processing
+
+### Empty States
+- Clear messaging when no data
+- Call-to-action to guide users
+- Consistent iconography
+
+### Interactive Elements
+- Hover states for all clickable elements
+- Focus indicators for accessibility
+- Smooth transitions (200ms default)
+- Loading button states
+
+## Common Utility Functions
+
+### Data Normalization
+- `normalizeScid()` - Clean SCID values
+- `normalizePoleNum()` - Standardize pole numbers
+- `_to_feet_ts()` - Convert measurements to feet
+- `calculateHaversineDistance()` - Geographic calculations
+
+### Export Utilities
+- `exportToCsv()` - Generate CSV files
+- `generateSpidaJsonWithUpdates()` - Update SPIDA JSON
+- `exportKatapultAttributeUpdateExcel()` - Generate Excel
+
+## AI Integration Guidelines
+
+### Gemini Service Pattern
+- Use GeminiService class for all AI operations
+- Handle rate limiting gracefully
+- Provide fallbacks for AI failures
+- Cache results when appropriate
+
+### Prompt Engineering
+- Be specific about output format
+- Include relevant context
+- Use consistent terminology
+- Limit response length appropriately
+
+## Accessibility Standards
+
+### WCAG 2.1 AA Compliance
+- Proper heading hierarchy
+- ARIA labels for interactive elements
+- Keyboard navigation support
+- Color contrast ratios
+- Screen reader compatibility
+
+## Future Improvements
+- Implement React Context for state management
+- Add comprehensive test coverage
+- Implement Web Workers for data processing
+- Add data virtualization for large datasets
+- Migrate to React Query for server state
+- Implement proper error logging service
