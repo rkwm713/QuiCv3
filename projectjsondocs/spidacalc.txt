@@ -57,3 +57,203 @@ to get “33′ 5″” style output.                                           
 4. **ID fields** come straight from each object’s `id`.
 
 By following those paths (and running your existing conversion utilities for units and distances), you’ll reproduce exactly the columns in your screenshot.
+
+# SPIDAcalc JSON: Context Instructions for Attachment Comparison
+
+These instructions provide detailed context for AI agents to parse a SPIDAcalc JSON file, extract attachment data from both *Measured* and *Recommended* designs, compare them, and format key fields (height, size, owner) for display.
+
+---
+
+## 1. SPIDAcalc JSON Structure Overview
+
+The SPIDAcalc JSON follows the SPIDAexchange schema and is organized in several nested layers:
+
+1. **Top-Level Metadata** (`label`, `schema`, `version`, `engineer`, `date`, `comments`)
+
+   * Defines project context and validation schema version.
+
+2. **Client Library** (`clientData`)
+
+   * Contains full catalog of poles, wires, insulators, equipment, crossarms, anchors, bundles, etc.
+   * Each item has a `catalogItem` reference and a `{ unit, value }` measurement pattern.
+
+3. **Leads & Locations** (`leads`)
+
+   * Array of lead groups; each lead has `locations` for each pole inspected.
+   * **locations\[i]** has:
+
+     * `label`: pole identifier (e.g. "1-PL28462").
+     * `geographicCoordinate`: `{ type: "Point", coordinates: [lon, lat] }`.
+     * `designs`: array of design layers, typically two entries:
+
+       * **Measured Design** (`layerType: "Measured"`)
+       * **Recommended Design** (`layerType: "Recommended"`)
+
+4. **Design Layer** (`designs[j]`)
+
+   * Each design contains:
+
+     * **structure.pole**: owner, environmental factors, ground line cut, externalId, aliases.
+     * **wireEndPoints**: attachments of wires/guy wires; each with:
+
+       * `id`, `attachmentHeight.value`, `directionDegrees`, `relatedItems[]`, `position.z` if present.
+       * `catalogItem` reference via `clientItemVersion` to map size/type.
+     * **insulators\[]**, **equipments\[]**, **crossArms\[]**, **guys\[]**: hardware attachments; each with:
+
+       * `id`, `position.z.value`, `type` or `catalogItem.displayName`, optional `directionDegrees`.
+     * **analysis** & **results**: load case results (pass/fail), not required for attachment QC.
+
+---
+
+## 2. Attachment Data Extraction
+
+To build a unified list of attachments for comparison, follow these steps:
+
+1. **Select a Design**
+
+   * Loop through `leads[].locations[].designs` and filter by `layerType` ("Measured" or "Recommended").
+
+2. **Flatten Attachments**
+
+   * For each `design`:
+
+     * **Pole Owner**:  `design.structure.pole.owner` (string).
+
+     * **Pole SCID**:   `design.structure.pole.externalId` or alias matching SCID.
+
+     * **Wire/Guy Endpoints**: iterate `design.wireEndPoints[]`:
+
+       * `id` → unique attachment ID.
+       * `attachmentHeight.value` (metres) → height.
+       * `directionDegrees` → direction.
+       * `relatedItems[]` → other end IDs.
+       * Map `catalogItem` via `clientData.wires` or `clientData.bundleComponents` to get display size.
+
+     * **Insulators & Equipment**: iterate `design.insulators[]`, `design.equipments[]`, etc:
+
+       * `id` → unique.
+       * `position.z.value` (metres) → height.
+       * `type` or `catalogItem.displayName` → size/type label.
+       * (Optional) `directionDegrees` field if present.
+
+3. **Normalize Units**
+
+   * Convert metres → feet/inches using constants:
+
+     ```js
+     const INCHES_IN_FOOT = 12;
+     const METRES_TO_INCHES = 39.3701;
+     feet = Math.floor(value * METRES_TO_INCHES / INCHES_IN_FOOT);
+     inches = Math.round((value * METRES_TO_INCHES) % INCHES_IN_FOOT);
+     label = `${feet}' ${inches}"`;
+     ```
+
+4. **Build Attachment Objects**
+
+   ```ts
+   interface Attachment {
+     poleScid: string;
+     id: string;
+     owner: string;
+     type: string;
+     size: string;
+     heightFeetInches: string;
+     rawHeightMetres: number;
+     directionDegrees?: number;
+     offsetLeadFeet?: number; // computed separately
+     relatedIds?: string[];
+   }
+   ```
+
+---
+
+## 3. Comparison Logic Between Designs
+
+To compare the *Measured* vs. *Recommended* sets:
+
+1. **Index by Key**
+
+   * Key = `${poleScid}-${attachment.id}`.
+   * Build two maps: `measuredMap`, `recommendedMap`.
+
+2. **Union of Keys**
+
+   * `allKeys = new Set([...measuredKeys, ...recommendedKeys])`.
+
+3. **Compute Comparison Rows**
+
+   ```ts
+   interface ComparisonRow {
+     key: string;
+     poleScid: string;
+     attachmentId: string;
+     measured?: Attachment;
+     recommended?: Attachment;
+     deltaHeightFeetInches?: string;
+     deltaHeightMetres?: number;
+     status: 'Match' | 'Changed' | 'Added' | 'Removed';
+   }
+
+   rows = Array.from(allKeys).map(key => {
+     const meas = measuredMap.get(key);
+     const rec  = recommendedMap.get(key);
+     let status: ComparisonRow['status'];
+     if (meas && rec) {
+       status = (meas.rawHeightMetres === rec.rawHeightMetres
+                 && meas.size === rec.size
+                 && meas.owner === rec.owner)
+         ? 'Match' : 'Changed';
+     } else {
+       status = meas ? 'Removed' : 'Added';
+     }
+     const deltaM  = rec && meas ? rec.rawHeightMetres - meas.rawHeightMetres : undefined;
+     const deltaH = deltaM !== undefined
+       ? formatFeetInches(deltaM)
+       : undefined;
+     return { key, poleScid, attachmentId: key.split('-')[1], measured: meas, recommended: rec, deltaHeightFeetInches: deltaH, deltaHeightMetres: deltaM, status };
+   });
+   ```
+
+4. **Offset/Lead Calculation** (optional)
+
+   * Compute horizontal distance (ft) between `location.geographicCoordinate` of consecutive poles.
+   * Attach `offsetLeadFeet` to each `Attachment` for span-based items.
+
+---
+
+## 4. Rendering & Display Guidelines
+
+When displaying comparison results in a table/UI:
+
+* **Columns**:
+  \| SCID | Attachment ID | Owner (Meas) | Owner (Rec) | Type | Size (Meas) | Size (Rec) | Height (Meas) | Height (Rec) | Δ Height | Status |
+
+* **Height**:
+
+  * Show `measured.heightFeetInches` vs. `recommended.heightFeetInches`.
+  * Color-code Δ Height: green if ∆ = 0, orange if ∆ ≠ 0.
+
+* **Size & Type**:
+
+  * Display exactly as `attachment.type` and `attachment.size` strings.
+  * If size differs → highlight.
+
+* **Owner**:
+
+  * Strings from `structure.pole.owner`. If owners differ → highlight cell.
+
+* **Status**:
+
+  * Badge or label: **Match**, **Changed**, **Added**, **Removed**.
+
+* **Filtering & Sorting**:
+
+  * By status, by ∆ height threshold, by pole SCID, by attachment type.
+
+* **Summary**:
+
+  * Total compared, count of Changed, max ∆ Height.
+
+---
+
+> These context instructions can be injected into your AI agent’s prompt or Cursor rules, ensuring it understands exactly how to parse, compare, and format SPIDAcalc attachment data across designs.

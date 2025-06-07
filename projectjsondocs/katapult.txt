@@ -1,0 +1,354 @@
+Below is a similar breakdown for your Katapult JSON, showing how each of the same table‐columns can be derived from the raw JSON (and/or computed by the Python script). You can paste this directly into your project docs so your agents know exactly where to look.
+
+---
+
+## Major Sections of the Katapult JSON
+
+1. **Job-Level Metadata**
+   Top-level fields like
+
+   ```json
+   {
+     "job_owner": "techserv",
+     "job_creator": "techserv_CPS_ENERGY",
+     "last_upload": 1742575654027,
+     …
+   }
+   ```
+
+   tell you who ran the job and when .
+
+2. **Node & Photo Data**
+   Under `"nodes"` you have entries like
+
+   ```json
+   "nodes": {
+     "-O9VF3R9l-LTH2ZnVuLk": {
+       "photos": {
+         "<photoId>": { "association":"main", … }
+       },
+       "attributes": { … }
+     },
+     …
+   }
+   ```
+
+   From each node’s **main** photo you read `photofirst_data.wire`, `.equipment`, and `.guying` for all measured attachments .
+
+3. **Trace Library**
+   In `"traces":{"trace_data":{…}}` each `_trace` ID maps to metadata:
+
+   ```json
+   {
+     "<traceId>": {
+       "company":"CPS ENERGY",
+       "cable_type":"primary",
+       "equipment_type":"street_light",
+       "proposed":false
+     },
+     …
+   }
+   ```
+
+   This is exactly what the script uses to build your “Owner ➔ Type/Size” labels .
+
+4. **Connections & Sections**
+   Under `"connections"` you have connections between poles:
+
+   ```json
+   "-O9VF3RAft63nBSvogpC": {
+     "node_id_1":"…", "node_id_2":"…",
+     "sections": {
+       "midpoint_section": {
+         "latitude":29.5106135655,
+         "longitude":-98.2094803229,
+         "photos":{ … }
+       }
+     }
+   }
+   ```
+
+   These section coordinates drive your span “Lead” and “Direction” computations .
+
+---
+
+## Mapping Table Columns
+
+| Column    | JSON Path / Computation | Notes |
+| --------- | ----------------------- | ----- |
+| **Owner** | From the trace library: |       |
+
+```py
+trace_info = job_data['traces']['trace_data'][trace_id]
+owner = trace_info['company']
+```
+
+&#x20;                   \| Who owns that wire/equipment/guy (“CPS ENERGY”, “Charter”, etc.).                                                                                                             |
+\| **Type**         | The category you’re looping over in `photofirst_data`:
+
+```py
+for category in ['wire','equipment','guying']:
+    # Category itself is your “Type”
+```
+
+&#x20;                        \| Simply “wire”, “equipment”, or “guying” to match your screenshot’s “Type” column.                                                                                              |
+\| **Size**         | The specific sub-type label:
+
+```py
+if category in ['wire','guying']:
+    size = trace_info['cable_type']
+else:
+    size = trace_info.get('equipment_type') or item['equipment_type']
+```
+
+&#x20;                     \| E.g. “primary”, “neutral”, “Street Light (drip)”, “Down Guy”, etc.                                                                                                                |
+\| **Height**       | Measured height in inches → feet-and-inches:
+
+```py
+h = float(item['_measured_height'])
+formatted = format_height_feet_inches(h)
+```
+
+&#x20;                          \| Uses the GUI’s `format_height_feet_inches` helper.                                                                                                                             |
+\| **Offset / Lead**| Horizontal distance between this pole and the next (or previous) connection point:
+
+1. Read node’s own lat/lon from its main photo
+2. Read section’s `latitude`/`longitude` from that connection
+3. Run a geodesic/Haversine (or similar) to get metres → feet
+
+```py
+# pseudo-code
+d = haversine((lat1,lon1),(lat2,lon2))
+lead_ft = d * METRES_TO_FEET
+```
+
+&#x20;                       \| If you prefer, you can use the “d” property in your GeoJSON layer (many exports include a “d” distance field).                                                              |
+\| **Direction**    | Azimuth from current pole to the section point, via:
+
+```py
+degrees, cardinal = calculate_bearing(lat1,lon1,lat2,lon2)
+direction = f"{int(degrees)}° ({cardinal})"
+```
+
+&#x20;                       \| Gives you “NW (315°)”, “SE (135°)”, etc.                                                                                                                                         |
+\| **Related**      | The *other* node in this span:
+
+```py
+other_node = (conn['node_id_1']==this_node) 
+           ? conn['node_id_2'] 
+           : conn['node_id_1']
+```
+
+&#x20;                      \| You can look up that node’s SCID or DLOC if you need a human‐readable tag.                                                                                                     |
+\| **ID**           | The trace identifier for that attachment instance:
+
+```py
+trace_id = item['_trace']
+```
+
+&#x20;                   \| Unique per wire/equipment/guy in the photo data.                                                                                                                                |
+
+---
+
+### Putting It All Together
+
+1. **Load** your Katapult JSON into `job_data`.
+2. **For each** connection record (`for conn_id, conn in job_data['connections'].items():`)
+3. **Grab** the “from” node (`node_id_1`), find its main photo, and pull `photofirst_data`.
+4. **Loop** through `wire`, `equipment`, `guying` items → build your rows using the table above.
+5. **Convert** all metres→feet/inches, lat/lon→distance & bearing, and output exactly the same eight columns as your SPIDAcalc report.
+
+With this mapping in place, any downstream script or AI agent can parse your Katapult JSON and reproduce a table indistinguishable—column for column—from your SPIDAcalc attachments report.
+
+To fold Katapult data into your existing SPIDAcalc QC pipeline you’ll want to:
+
+1. **Extend your data model** so every `Attachment` carries a `source: 'spida-meas' | 'spida-rec' | 'katapult'` tag.
+2. **Parse Katapult JSON** into the same `Attachment` shape, keyed on the same pole IDs (SCIDs).
+3. **Merge** the two streams of attachments before you diff, and update your comparison logic/UI to show three-way diffs or side-by-side SPIDA vs Katapult.
+
+---
+
+## 1. Update your Types
+
+```ts
+// in src/types/spida.ts (or wherever Attachment lives)
+export interface Attachment {
+  poleScid: string;
+  id: string;
+  owner: string;
+  type: string;
+  size: string;
+  height: number;            // always in feet
+  source: 'spida-meas' | 'spida-rec' | 'katapult';
+  rawData?: any;
+}
+```
+
+And for comparison rows, either:
+
+```ts
+export interface ComparisonRow {
+  key: string;               // `${poleScid}-${id}`
+  spidaMeasured?: Attachment;
+  spidaRecommended?: Attachment;
+  katapult?: Attachment;
+  // deltaHeight fields you want to compute...
+  status: 'Match' | 'Changed' | 'Added' | 'Removed' | 'Katapult-Mismatch';
+}
+```
+
+---
+
+## 2. Write a Katapult extractor
+
+Add a new function alongside `extractSpidaDesigns`, e.g.:
+
+```ts
+import { Attachment } from '../types';
+
+export function extractKatapultAttachments(
+  katJson: KatapultJsonFormat | null
+): Attachment[] {
+  if (!katJson) return [];
+
+  const attachments: Attachment[] = [];
+  const { nodes, connections, traces } = katJson;
+
+  // 1) Build a lookup from nodeId → SCID (you need some mapping—either via a custom field
+  //    on your Katapult nodes or SCID injected into a node attribute)
+  const nodeToScid: Record<string,string> = {};
+  Object.entries(nodes).forEach(([nodeId, node]) => {
+    nodeToScid[nodeId] = node.attributes?.SCID || nodeId;
+  });
+
+  // 2) Loop through connections to get each span-attachment
+  Object.values(katJson.connections).forEach(conn => {
+    const { node_id_1, node_id_2, sections } = conn;
+    Object.values(sections).forEach((sec:any, i:number) => {
+      const poleScid = nodeToScid[node_id_1];
+      const id       = `${conn._trace}-${i}`;
+      // find the trace metadata
+      const trace    = traces.trace_data[conn._trace];
+      // height = measured height on the photo feature
+      const heightIn = parseFloat(sec._measured_height) || 0;
+      const heightFt = _to_feet_ts(heightIn);
+
+      if (heightFt > 0) {
+        attachments.push({
+          poleScid,
+          id,
+          owner: trace.company,
+          type: trace.cable_type || trace.equipment_type,
+          size: trace.cable_type || trace.equipment_type,
+          height: heightFt,
+          source: 'katapult',
+          rawData: { conn, sec, trace }
+        });
+      }
+    });
+  });
+
+  // 3) (Optional) loop through node photo equipment/guying categories similarly
+
+  return attachments;
+}
+```
+
+---
+
+## 3. Load both JSONs and stitch them together
+
+In your file‐upload or context hook:
+
+```ts
+import { extractSpidaDesigns } from './spidaExtract';
+import { extractKatapultAttachments } from './katapultExtract';
+
+export function useComparisonData(
+  spidaJson: SpidaJsonFullFormat | null,
+  katJson: KatapultJsonFormat | null
+): ComparisonRow[] {
+  const { measured, recommended } = extractSpidaDesigns(spidaJson);
+  const katAttachments = extractKatapultAttachments(katJson);
+
+  // tag sources
+  measured.forEach(a => (a.source = 'spida-meas'));
+  recommended.forEach(a => (a.source = 'spida-rec'));
+  katAttachments.forEach(a => (a.source = 'katapult'));
+
+  // build a map of all keys
+  const allKeys = new Set<string>(
+    [...measured, ...recommended, ...katAttachments]
+      .map(a => `${a.source}-${a.poleScid}-${a.id}`)
+  );
+
+  return Array.from(allKeys).map(key => {
+    const [src, pole, id] = key.split('-', 3);
+    const meas = src === 'spida-meas'
+      ? measured.find(a => `${a.poleScid}-${a.id}` === `${pole}-${id}`)
+      : undefined;
+    const rec  = src === 'spida-rec'
+      ? recommended.find(a => `${a.poleScid}-${a.id}` === `${pole}-${id}`)
+      : undefined;
+    const kat  = src === 'katapult'
+      ? katAttachments.find(a => `${a.poleScid}-${a.id}` === `${pole}-${id}`)
+      : undefined;
+
+    // decide status
+    let status: ComparisonRow['status'] = 'Match';
+    // if all three exist and heights/size/owner line up → Match
+    // else if spida meas vs rec differs → Changed
+    // else if kat <> spida meas → Katapult-Mismatch
+    // else Added/Removed as before
+
+    // compute a delta if you like:
+    const deltaSpida = rec && meas ? rec.height - meas.height : undefined;
+    const deltaKata  = kat && meas ? kat.height - meas.height : undefined;
+
+    // you can add both deltas to the row for UI to render
+    return { key, spidaMeasured: meas, spidaRecommended: rec, katapult: kat, status, deltaSpida, deltaKat };
+  });
+}
+```
+
+---
+
+## 4. Update your UI
+
+1. **Table Columns**
+   Extend your `<QCToolTable />` to include two extra columns:
+
+   \| … | Height (Kat) | Δ Kat-Meas | Status |
+
+2. **Status Logic**
+
+   * **Match**: all three sources agree (within a tolerance).
+   * **Changed**: Measured vs Recommended differ.
+   * **Katapult-Mismatch**: Katapult height differs from SPIDA Measured beyond tolerance.
+   * **Added/Removed**: same as before when a row is missing in one of the sources.
+
+3. **Highlighting**
+
+   * If `|Δ Kat-Meas| > threshold`, color the Kat-height cell.
+   * If Recommended vs Katapult diverges, flag that too.
+
+---
+
+## 5. Summary Metrics
+
+Add a new line in your summary bar:
+
+* **Kat-Mismatch Count:** `rows.filter(r => r.status === 'Katapult-Mismatch').length`
+* **Max Δ Kat:** `Math.max(...rows.map(r => Math.abs(r.deltaKat || 0)))`
+
+---
+
+### In a Nutshell
+
+1. **Parse** Katapult JSON into the same `Attachment` shape.
+2. **Tag** every attachment with `source`.
+3. **Union** SPIDA Measured, SPIDA Recommended, and Katapult sets.
+4. **Diff** across three streams, extending your `ComparisonRow`.
+5. **Render** the extra columns and metrics in your table and summary.
+
+With that scaffold, your AI agent can generate the new `extractKatapultAttachments` function, wire up the hook, and expand the UI to give you an integrated SPIDA ↔ Katapult QC view.

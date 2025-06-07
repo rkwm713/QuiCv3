@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { APP_TITLE } from '../constants';
 import DemoTutorial from './DemoTutorial';
 import AIAnalytics from './AIAnalytics';
 import HeightComparisonTable from './HeightComparisonTable';
 import { CoverSheetTable } from './CoverSheetTable';
+import { DataManagement } from './DataManagement';
 
 interface DashboardLayoutProps {
   dataSourceSection: React.ReactNode;
@@ -20,14 +21,12 @@ interface DashboardLayoutProps {
   // Data props for AI Analytics
   comparisonData?: any;
   poleData?: any[];
+  // Data props for QC Tool
+  spidaJson?: any;
+  katapultJson?: any;
 }
 
-interface Bolt {
-  canvas: HTMLCanvasElement;
-  duration: number;
-}
-
-// Icon components for the new interface
+// Icon components for the navigation
 const AnalyticsIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -65,61 +64,19 @@ const CoverSheetIcon: React.FC = () => (
   </svg>
 );
 
-// Step Indicator Component
-const StepIndicator: React.FC<{ 
-  stepNumber: number; 
-  isActive: boolean; 
-  title: string;
-  isExpanded: boolean;
-  onToggle: () => void;
-  isDisabled?: boolean;
-}> = ({ 
-  stepNumber, 
-  isActive, 
-  title,
-  isExpanded,
-  onToggle,
-  isDisabled = false
-}) => (
-  <button
-    onClick={isDisabled ? undefined : onToggle}
-    disabled={isDisabled}
-    className={`
-      absolute -top-8 left-1/2 transform -translate-x-1/2 z-20 flex items-center space-x-2 px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap
-      transition-all duration-500
-      ${isDisabled 
-        ? 'bg-slate-800/50 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
-        : isActive 
-                        ? 'swirl-yellow-white text-slate-900 shadow-lg shadow-yellow-400/50 animate-glow-pulse scale-110 cursor-pointer hover:scale-105' 
-          : 'bg-slate-700/90 text-slate-300 border border-slate-600 hover:bg-slate-600/90 hover:border-slate-500 cursor-pointer hover:scale-105'
-      }
-      ${!isExpanded && !isDisabled ? 'ring-2 ring-slate-500 ring-opacity-50' : ''}
-    `}
-  >
-    <span className={`
-      w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
-      ${isDisabled
-        ? 'bg-slate-700 text-slate-500'
-        : isActive 
-          ? 'bg-white/20 text-slate-900' 
-          : 'bg-slate-600 text-slate-400'
-      }
-    `}>
-      {stepNumber}
-    </span>
-    <span className="flex-shrink-0">{title}</span>
-    {!isDisabled && (
-      <svg 
-        className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-0' : 'rotate-180'}`} 
-        fill="none" 
-        stroke="currentColor" 
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-      </svg>
-    )}
-  </button>
+const BookOpenIcon: React.FC = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  </svg>
 );
+
+const DataManagementIcon: React.FC = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+  </svg>
+);
+
+
 
 // PIN Entry Modal Component
 const PinModal: React.FC<{ 
@@ -153,12 +110,12 @@ const PinModal: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 w-full max-w-md mx-4 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">AI Analytics Access</h2>
+      <div className="card w-full max-w-md mx-4">
+        <div className="card-header flex items-center justify-between">
+          <h2 className="card-title">AI Analytics Access</h2>
           <button
             onClick={handleClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="btn btn-ghost p-2"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -166,53 +123,56 @@ const PinModal: React.FC<{
           </button>
         </div>
         
-        <div className="mb-4">
-          <p className="text-slate-300 mb-2">Enter PIN to access AI Analytics:</p>
-          <div className="flex items-center space-x-2 text-emerald-400 text-sm mb-4">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1118 0 9 9 0 01-18 0z" />
-            </svg>
-            <span>Secured AI Features</span>
+        <div className="space-y-4">
+          <div className="alert alert-info">
+            <div className="flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1118 0 9 9 0 01-18 0z" />
+              </svg>
+              <span>Secured AI Features</span>
+            </div>
           </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="Enter PIN"
+                className="input text-center text-lg tracking-widest"
+                maxLength={4}
+                autoFocus
+              />
+              {error && (
+                <div className="alert alert-error mt-2">
+                  <div className="flex items-center space-x-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <span>{error}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="btn btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary flex-1"
+              >
+                Access
+              </button>
+            </div>
+          </form>
         </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="Enter PIN"
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-center text-lg tracking-widest"
-              maxLength={4}
-              autoFocus
-            />
-            {error && (
-              <p className="text-red-400 text-sm mt-2 flex items-center space-x-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <span>{error}</span>
-              </p>
-            )}
-          </div>
-
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold"
-            >
-              Access
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
@@ -231,150 +191,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   hasDataToExport,
   comparisonData,
   poleData,
+  spidaJson,
+  katapultJson,
 }) => {
-  const [activeTab, setActiveTab] = useState<'demo' | 'table' | 'coversheet' | 'map' | 'analytics' | 'statistics' | 'qc'>('demo');
+  const [activeTab, setActiveTab] = useState<'demo' | 'data-management' | 'table' | 'coversheet' | 'map' | 'analytics' | 'statistics' | 'qc'>('data-management');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
-
-  // Lightning animation refs
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
-  const boltsRef = useRef<Bolt[]>([]);
-  const lastFrameRef = useRef<number>(Date.now());
-  const flashOpacityRef = useRef<number>(0);
-  
-  // Animation constants
-  const totalBoltDuration = 0.2;
-  const boltFadeDuration = 0.1;
-  const boltWidth = 4.0;
-  const boltWobble = 20.0;
-  
-  // Card collapse/expand state
-  const [expandedCards, setExpandedCards] = useState<{
-    step1: boolean;
-    step2: boolean; 
-    step3: boolean;
-  }>({
-    step1: true,
-    step2: false,  // Start collapsed until both files uploaded
-    step3: false,  // Start collapsed until both files uploaded
-  });
-
-  // Lightning animation functions
-  const setCanvasSize = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-  };
-
-  const createBoltCanvas = (startX: number, startY: number, length: number, angle: number): HTMLCanvasElement => {
-    const canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const context = canvas.getContext('2d')!;
-    
-    const x = startX;
-    let y = startY;
-    
-    context.strokeStyle = 'rgba(255, 255, 255, 1.0)';
-    context.lineWidth = boltWidth;
-    context.lineCap = 'round';
-    context.shadowColor = 'rgba(100, 149, 237, 0.8)';
-    context.shadowBlur = 10;
-    
-    context.beginPath();
-    context.moveTo(x, y);
-    
-    const segments = Math.floor(length / 10);
-    for (let i = 0; i < segments; i++) {
-      const segmentLength = length / segments;
-      const wobbleX = (Math.random() - 0.5) * boltWobble;
-      const wobbleY = (Math.random() - 0.5) * boltWobble;
-      
-      y += segmentLength + wobbleY;
-      context.lineTo(x + wobbleX, y);
-    }
-    
-    context.stroke();
-    
-    // Add some branches
-    if (Math.random() > 0.7) {
-      const branchY = startY + Math.random() * length * 0.7;
-      const branchLength = length * 0.3;
-      const branchAngle = angle + (Math.random() - 0.5) * Math.PI / 4;
-      
-      context.beginPath();
-      context.moveTo(x, branchY);
-      context.lineTo(
-        x + Math.cos(branchAngle) * branchLength,
-        branchY + Math.sin(branchAngle) * branchLength
-      );
-      context.stroke();
-    }
-    
-    return canvas;
-  };
-
-  const launchBolt = (x: number, y: number, length: number, angle: number) => {
-    const boltCanvas = createBoltCanvas(x, y, length, angle);
-    const bolt: Bolt = {
-      canvas: boltCanvas,
-      duration: 0
-    };
-    
-    boltsRef.current.push(bolt);
-    flashOpacityRef.current = 0.3;
-  };
-
-  const tick = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const context = canvas.getContext('2d')!;
-    const frame = Date.now();
-    const elapsed = (frame - lastFrameRef.current) / 1000.0;
-    lastFrameRef.current = frame;
-    
-    // Clear the canvas
-    context.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    
-    // Fire a bolt every once in a while
-    if (Math.random() > 0.9985) {
-      const x = Math.floor(-10 + Math.random() * (window.innerWidth + 20));
-      const y = 0; // Always start from the very top of the screen
-      const length = Math.floor(window.innerHeight / 2 + Math.random() * (window.innerHeight / 2));
-      
-      launchBolt(x, y, length, Math.PI * 3 / 2);
-    }
-    
-    // Draw the flash
-    if (flashOpacityRef.current > 0) {
-      context.fillStyle = `rgba(255, 255, 255, ${flashOpacityRef.current})`;
-      context.fillRect(0, 0, window.innerWidth, window.innerHeight);
-      flashOpacityRef.current = Math.max(0, flashOpacityRef.current - 2.0 * elapsed);
-    }
-    
-    // Draw each bolt
-    const bolts = boltsRef.current;
-    for (let i = bolts.length - 1; i >= 0; i--) {
-      const bolt = bolts[i];
-      bolt.duration += elapsed;
-      
-      if (bolt.duration >= totalBoltDuration) {
-        bolts.splice(i, 1);
-        continue;
-      }
-      
-      context.globalAlpha = Math.max(0, Math.min(1, (totalBoltDuration - bolt.duration) / boltFadeDuration));
-      context.drawImage(bolt.canvas, 0, 0);
-    }
-    
-    context.globalAlpha = 1.0;
-    animationFrameRef.current = requestAnimationFrame(tick);
-  };
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Handle analytics tab access with PIN protection
   const handleAnalyticsTabClick = () => {
@@ -395,9 +219,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     setShowPinModal(false);
   };
 
-  // Only automatically switch to Data Table tab once after comparison is run
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
+  // Handle responsive sidebar behavior
   useEffect(() => {
-    if (hasComparisonRun && activeTab === 'demo' && !hasAutoSwitchedToTable) {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setIsSidebarCollapsed(true);
+      }
+      // Note: Don't auto-expand on desktop resize to preserve user preference
+    };
+
+    // Set initial state based on screen size
+    if (window.innerWidth <= 768) {
+      setIsSidebarCollapsed(true);
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Only automatically switch to Katapult Attribute Check tab once after comparison is run
+  useEffect(() => {
+    if (hasComparisonRun && activeTab === 'data-management' && !hasAutoSwitchedToTable) {
       setActiveTab('table');
       setHasAutoSwitchedToTable(true);
     }
@@ -410,337 +256,147 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }
   }, [hasComparisonRun]);
 
-  // Lightning animation setup
-  useEffect(() => {
-    setCanvasSize();
-    
-    const handleResize = () => {
-      setCanvasSize();
-    };
-    
-    window.addEventListener('resize', handleResize);
-    animationFrameRef.current = requestAnimationFrame(tick);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
 
-  // Auto-collapse completed steps
-  useEffect(() => {
-    const bothFilesUploaded = (hasSpidaFile ?? false) && (hasKatapultFile ?? false);
-    
-    // Collapse steps 2 and 3 if both files haven't been uploaded
-    if (!bothFilesUploaded) {
-      setExpandedCards(prev => ({
-        ...prev,
-        step2: false,
-        step3: false
-      }));
-    } else {
-      // Expand step 2 when both files are uploaded (unless already completed)
-      if (!expandedCards.step2 && !(hasComparisonRun ?? false)) {
-        setExpandedCards(prev => ({ ...prev, step2: true }));
-      }
-    }
-    
-    // Only expand step 3 when comparison has been run
-    if ((hasComparisonRun ?? false) && !expandedCards.step3) {
-      setExpandedCards(prev => ({ ...prev, step3: true }));
-    }
-    
-    // Collapse step 1 when both files are uploaded
-    if (bothFilesUploaded && expandedCards.step1) {
-      setExpandedCards(prev => ({ ...prev, step1: false }));
-    }
-    
-    // Collapse step 2 when comparison is run
-    if ((hasComparisonRun ?? false) && expandedCards.step2) {
-      setExpandedCards(prev => ({ ...prev, step2: false }));
-    }
-  }, [hasSpidaFile, hasKatapultFile, hasComparisonRun, expandedCards.step1, expandedCards.step2, expandedCards.step3]);
 
-  // Determine current workflow step
-  const bothFilesUploaded = (hasSpidaFile ?? false) && (hasKatapultFile ?? false);
-  const isStep1Active = !bothFilesUploaded;
-  const isStep2Active = bothFilesUploaded && !(hasComparisonRun ?? false);
-  const isStep3Active = (hasComparisonRun ?? false) && (hasDataToExport ?? false);
-
-  const toggleCard = (step: 'step1' | 'step2' | 'step3') => {
-    const bothFilesUploaded = (hasSpidaFile ?? false) && (hasKatapultFile ?? false);
-    
-    // Prevent expanding step 2 or 3 if both files haven't been uploaded
-    if ((step === 'step2' || step === 'step3') && !bothFilesUploaded) {
-      return;
-    }
-    
-    // Prevent expanding step 3 if comparison hasn't been run
-    if (step === 'step3' && !(hasComparisonRun ?? false)) {
-      return;
-    }
-    
-    setExpandedCards(prev => ({
-      ...prev,
-      [step]: !prev[step]
-    }));
-  };
-
-  const BookOpenIcon: React.FC = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
-  );
-
-  const tabs = [
-    { id: 'demo' as const, name: 'Demo & Tutorial', icon: <BookOpenIcon />, description: 'Learn how to use QuiC (always available)' },
-    { id: 'table' as const, name: 'Data Table', icon: <TableIcon />, description: 'Detailed comparison results' },
-    { id: 'coversheet' as const, name: 'CoverSheet', icon: <CoverSheetIcon />, description: 'Generate cover sheet from SPIDA data with AI-powered notes' },
+  const navigationItems = [
+    { id: 'data-management' as const, name: 'Data Management', icon: <DataManagementIcon />, description: 'Load data, run analysis, and export results' },
+    { id: 'table' as const, name: 'Katapult Attribute Check', icon: <TableIcon />, description: 'Verify Pole Numbers, SCIDs, Specs, and Loading %' },
+    { id: 'coversheet' as const, name: 'CoverSheet', icon: <CoverSheetIcon />, description: 'Generate a PE cover sheet from SPIDAcalc data' },
     { id: 'map' as const, name: 'Map View', icon: <MapIcon />, description: 'Geographic visualization' },
     { id: 'statistics' as const, name: 'Statistics', icon: <StatisticsIcon />, description: 'Match statistics & insights' },
-    { id: 'qc' as const, name: 'Height Comparison', icon: <QCIcon />, description: 'Compare pole heights, wires, and attachments between systems' },
+    { id: 'qc' as const, name: 'QC Tool', icon: <QCIcon />, description: 'Compare pole and attachment heights' },
     { id: 'analytics' as const, name: 'Analytics', icon: <AnalyticsIcon />, description: 'AI-powered data insights' },
+    { id: 'demo' as const, name: 'Demo & Tutorial', icon: <BookOpenIcon />, description: 'Learn how to use QuiC' },
   ];
 
   return (
-    <div className="h-screen animated-gradient-bg flex flex-col relative">
-      {/* Lightning canvas background */}
-      <canvas 
-        ref={canvasRef}
-        className="fixed inset-0 pointer-events-none z-0"
-        style={{ background: 'transparent' }}
-      />
-      
-      {/* Animated background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-10">
-        <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-yellow-400/5 to-blue-500/5 rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '4s' }} />
-      </div>
-
-      <div className="relative z-20 flex flex-col h-full">
-        {/* Header and Cards - Fixed Height */}
-        <div className="flex-shrink-0 p-3 md:p-6 space-y-4">
-        {/* Header */}
-        <header className="text-left">
-          <div className="flex items-center space-x-4 mb-2">
-            <h1 className="text-5xl font-bold text-slate-200" style={{
-              filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.3))'
-            }}>
-              {APP_TITLE}
-            </h1>
-          </div>
-        </header>
-
-        {/* Control Cards - Now 3 columns instead of 4 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 max-w-5xl mx-auto -mt-1">
-          
-          {/* Data Sources Card */}
-          <div className={`group relative rounded-lg overflow-visible transition-all duration-500 ${isStep1Active ? 'animate-gentle-bounce' : ''}`}>
-            <StepIndicator 
-              stepNumber={1} 
-              isActive={isStep1Active} 
-              title="Load Data"
-              isExpanded={expandedCards.step1}
-              onToggle={() => toggleCard('step1')}
-            />
-            <div className={`
-              transition-all duration-500 ease-in-out mt-3
-              ${expandedCards.step1 
-                ? 'opacity-100 max-h-96 transform translate-y-0' 
-                : 'opacity-0 max-h-0 transform -translate-y-4 pointer-events-none'
-              }
-            `}>
-              <div className="h-full">
-                {dataSourceSection}
-              </div>
-            </div>
-            {/* Fun hover border animation */}
-            <div className={`
-                              absolute inset-0 rounded-lg bg-gradient-to-r from-yellow-400/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-sm mt-3
-              ${expandedCards.step1 ? '' : 'hidden'}
-            `}></div>
-          </div>
-
-          {/* Analysis Card */}
-          <div className={`group relative rounded-lg overflow-visible transition-all duration-500 ${isStep2Active ? 'animate-gentle-bounce' : ''}`}>
-            <StepIndicator 
-              stepNumber={2} 
-              isActive={isStep2Active} 
-              title="Analyze"
-              isExpanded={expandedCards.step2}
-              onToggle={() => toggleCard('step2')}
-              isDisabled={!bothFilesUploaded}
-            />
-            <div className={`
-              transition-all duration-500 ease-in-out mt-3
-              ${expandedCards.step2 
-                ? 'opacity-100 max-h-96 transform translate-y-0' 
-                : 'opacity-0 max-h-0 transform -translate-y-4 pointer-events-none'
-              }
-            `}>
-              <div className="h-full">
-                {analysisSection}
-              </div>
-            </div>
-            {/* Fun hover border animation */}
-            <div className={`
-              absolute inset-0 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-sm mt-3
-              ${expandedCards.step2 ? '' : 'hidden'}
-            `}></div>
-          </div>
-
-          {/* Export Card */}
-          <div className={`group relative rounded-lg overflow-visible transition-all duration-500 ${isStep3Active ? 'animate-gentle-bounce' : ''}`}>
-            <StepIndicator 
-              stepNumber={3} 
-              isActive={isStep3Active} 
-              title="Export"
-              isExpanded={expandedCards.step3}
-              onToggle={() => toggleCard('step3')}
-              isDisabled={!bothFilesUploaded || !(hasComparisonRun ?? false)}
-            />
-            <div className={`
-              transition-all duration-500 ease-in-out mt-3
-              ${expandedCards.step3 
-                ? 'opacity-100 max-h-96 transform translate-y-0' 
-                : 'opacity-0 max-h-0 transform -translate-y-4 pointer-events-none'
-              }
-            `}>
-              <div className="h-full">
-                {exportSection}
-              </div>
-            </div>
-            {/* Fun hover border animation */}
-            <div className={`
-              absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-sm mt-3
-              ${expandedCards.step3 ? '' : 'hidden'}
-            `}></div>
-          </div>
-        </div>
-
-        </div>
-
-        {/* Main Content Area with Tabs - Flexible Height */}
-        <div className="flex-1 flex flex-col w-full max-w-none mx-auto px-4 mt-8 min-h-0">
-          <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-xl shadow-black/20 overflow-hidden flex flex-col h-full">
-            
-            {/* Tab Navigation */}
-            <div className="flex-shrink-0 border-b border-slate-700/50 bg-slate-900/50">
-              <nav className="flex space-x-8 px-6">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => tab.id === 'analytics' ? handleAnalyticsTabClick() : setActiveTab(tab.id)}
-                    className={`
-                      relative py-4 px-2 font-medium text-sm transition-all duration-300
-                      flex items-center space-x-2 group
-                      ${activeTab === tab.id 
-                        ? 'text-yellow-400 border-b-2 border-yellow-400' 
-                        : 'text-slate-400 hover:text-slate-200'
-                      }
-                      ${tab.id === 'analytics' && !isAiUnlocked ? 'relative' : ''}
-                    `}
+    <div className="dashboard-layout">
+      <div className="flex h-screen">
+        {/* Mobile overlay */}
+        {!isSidebarCollapsed && (
+          <div 
+            className="sidebar-overlay" 
+            onClick={() => setIsSidebarCollapsed(true)}
+          />
+        )}
+        
+        {/* Left Sidebar Navigation */}
+        <div className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+          <nav className="sidebar-nav">
+            <div className="nav-section">
+              <div className="nav-section-header">
+                <button 
+                  onClick={toggleSidebar}
+                  className="sidebar-toggle-btn"
+                  title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                >
+                  <svg 
+                    className={`sidebar-toggle-icon ${isSidebarCollapsed ? 'collapsed' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
                   >
-                    <span className={`transition-transform duration-300 ${
-                      activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'
-                    }`}>
-                      {tab.icon}
-                    </span>
-                    <span>{tab.name}</span>
-                    {tab.id === 'analytics' && !isAiUnlocked && (
-                      <svg className="w-4 h-4 text-yellow-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1118 0 9 9 0 01-18 0z" />
-                      </svg>
-                    )}
-                    {activeTab === tab.id && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 solid-yellow-glow transform origin-left" />
-                    )}
-                  </button>
-                ))}
-              </nav>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => item.id === 'analytics' ? handleAnalyticsTabClick() : setActiveTab(item.id)}
+                  className={`sidebar-nav-item ${activeTab === item.id ? 'active' : ''}`}
+                  title={item.description}
+                >
+                  <div className="sidebar-nav-icon">
+                    {item.icon}
+                  </div>
+                  <div className="sidebar-nav-content">
+                    <span className="sidebar-nav-name">{item.name}</span>
+                    <span className="sidebar-nav-description">{item.description}</span>
+                  </div>
+                  {item.id === 'analytics' && !isAiUnlocked && (
+                    <svg className="w-4 h-4 text-warning ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 1.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM12 9V7a4 4 0 118 0v4M3 15a9 9 0 1118 0 9 9 0 01-18 0z" />
+                    </svg>
+                  )}
+                </button>
+              ))}
             </div>
+          </nav>
+          
+          <div className="sidebar-footer">
+            <img 
+              src={isSidebarCollapsed ? "/tablogo.svg" : "/logo.svg"}
+              alt="QuiC Logo" 
+              className="w-full h-auto max-w-24 mx-auto"
+            />
+          </div>
+        </div>
 
-            {/* Tab Content */}
-            <div className="relative flex-1 min-h-0">
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'demo' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                  <DemoTutorial />
-                </div>
+        {/* Main Content Area */}
+        <div className="main-content">
+          {/* Page Content */}
+          <div className="page-content">
+            {activeTab === 'demo' && (
+              <div className="content-container">
+                <DemoTutorial />
               </div>
+            )}
 
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'table' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                  {dataTableSection}
-                </div>
+            {activeTab === 'data-management' && (
+              <div className="content-container">
+                <DataManagement
+                  dataSourceSection={dataSourceSection}
+                  analysisSection={analysisSection}
+                  exportSection={exportSection}
+                  statusSection={statusSection}
+                  hasSpidaFile={hasSpidaFile}
+                  hasKatapultFile={hasKatapultFile}
+                  hasComparisonRun={hasComparisonRun}
+                  hasDataToExport={hasDataToExport}
+                />
               </div>
+            )}
 
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'coversheet' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                  <CoverSheetTable data={poleData || []} />
-                </div>
+            {activeTab === 'table' && (
+              <div className="content-container">
+                {dataTableSection}
               </div>
+            )}
 
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'map' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                  {mapSection}
-                </div>
+            {activeTab === 'coversheet' && (
+              <div className="content-container">
+                <CoverSheetTable data={poleData || []} />
               </div>
+            )}
 
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'statistics' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full flex flex-col p-6">
-                  <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                    <div className="p-6 h-full overflow-auto">
-                      {statusSection}
-                    </div>
-                  </div>
-                </div>
+            {activeTab === 'map' && (
+              <div className="content-container">
+                {mapSection}
               </div>
+            )}
 
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'qc' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full flex flex-col p-6">
-                  <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                    <div className="p-6 h-full overflow-auto">
-                      <HeightComparisonTable poles={poleData || []} />
-                    </div>
-                  </div>
-                </div>
+            {activeTab === 'statistics' && (
+              <div className="content-container">
+                {statusSection}
               </div>
+            )}
 
-              <div className={`
-                absolute inset-0 transition-all duration-500 transform
-                ${activeTab === 'analytics' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
-              `}>
-                <div className="h-full flex flex-col p-6">
-                  <div className="flex-1 bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                    <AIAnalytics 
-                      comparisonData={comparisonData} 
-                      poleData={poleData} 
-                      hasComparisonRun={hasComparisonRun}
-                    />
-                  </div>
-                </div>
+            {activeTab === 'qc' && (
+              <div className="content-container">
+                <HeightComparisonTable spidaJson={spidaJson} katapultJson={katapultJson} />
               </div>
-            </div>
+            )}
+
+            {activeTab === 'analytics' && (
+              <div className="content-container">
+                <AIAnalytics 
+                  comparisonData={comparisonData} 
+                  poleData={poleData} 
+                  hasComparisonRun={hasComparisonRun}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

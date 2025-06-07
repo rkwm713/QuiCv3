@@ -1,4 +1,3 @@
-
 export interface Coordinate {
   lat: number;
   lon: number;
@@ -257,6 +256,7 @@ export interface HeightComparisonStats {
   heightDiff: number;
   onlyInKat: number;
   onlyInSpida: number;
+  maxDelta: number;
 }
 
 export interface HeightComparisonData {
@@ -285,4 +285,50 @@ export interface SpidaJsonFullFormat {
     [key: string]: any;
   }>;
   [key: string]: any;
+}
+
+// QC Tool - SPIDA Design Comparison Types
+export interface Attachment {
+  poleScid: string;
+  id: string;
+  owner: string;
+  type: string;
+  size: string;
+  height: number;          // in feet (convert from metres)
+  direction?: number;      // degrees
+  offsetLead?: number;     // feet
+  source: 'spida-measured' | 'spida-recommended' | 'katapult';
+  rawData?: any;          // store original attachment data
+}
+
+export interface ComparisonRow {
+  key: string;             // `${poleScid}-${id}`
+  measured?: Attachment;
+  recommended?: Attachment;
+  katapult?: Attachment;
+  deltaHeightMeasRec?: number;    // recommended.height - measured.height
+  deltaHeightMeasKat?: number;    // katapult.height - measured.height
+  deltaHeightRecKat?: number;     // katapult.height - recommended.height
+  status: 'Match' | 'Added' | 'Removed' | 'Changed' | 'Katapult-Only' | 'Katapult-Mismatch';
+}
+
+export interface QCComparisonData {
+  rows: ComparisonRow[];
+  stats: {
+    total: number;
+    matches: number;
+    changed: number;
+    added: number;
+    removed: number;
+    katapultOnly: number;
+    katapultMismatch: number;
+    maxDeltaMeasRec: number;
+    maxDeltaMeasKat: number;
+    maxDeltaRecKat: number;
+  };
+}
+
+export interface DesignMap {
+  measured: Attachment[];
+  recommended: Attachment[];
 }

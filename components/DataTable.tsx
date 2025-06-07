@@ -12,22 +12,22 @@ const getMismatchClass = (pole: ProcessedPole, columnKey: string): string => {
   switch (columnKey) {
     case 'displaySpidaScid':
     case 'displayKatapultScid':
-      return pole.isScidMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? MISMATCH_HIGHLIGHT_CLASS : '';
+      return pole.isScidMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? 'cell-error' : '';
     case 'displaySpidaPoleNum':
     case 'displayKatapultPoleNum':
-      return pole.isPoleNumMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? MISMATCH_HIGHLIGHT_CLASS : '';
+      return pole.isPoleNumMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? 'cell-error' : '';
     case 'editableSpidaSpec':
     case 'displayKatapultPoleSpec':
-      return pole.isSpecMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? MISMATCH_HIGHLIGHT_CLASS : '';
+      return pole.isSpecMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? 'cell-error' : '';
     case 'editableSpidaExistingPct':
     case 'displayKatapultExistingPct':
-      return pole.isExistingPctMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? MISMATCH_HIGHLIGHT_CLASS : '';
+      return pole.isExistingPctMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? 'cell-error' : '';
     case 'editableSpidaFinalPct':
     case 'displayKatapultFinalPct':
-      return pole.isFinalPctMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? MISMATCH_HIGHLIGHT_CLASS : '';
+      return pole.isFinalPctMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? 'cell-error' : '';
     case 'editableSpidaCommDrop':
     case 'displayKatapultCommDrop':
-      return pole.isCommDropMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? MISMATCH_HIGHLIGHT_CLASS : '';
+      return pole.isCommDropMismatch && pole.matchTier !== MatchTier.UNMATCHED_SPIDA && pole.matchTier !== MatchTier.UNMATCHED_KATAPULT ? 'cell-error' : '';
     default:
       return '';
   }
@@ -73,7 +73,6 @@ const shouldFlagForReview = (pole: ProcessedPole, columnKey: string): boolean =>
   }
   
   // Check for difference > 45% between recommended and measured percentages
-  // This applies to both SPIDA and Katapult percentage columns
   if (columnKey === 'editableSpidaExistingPct' || columnKey === 'editableSpidaFinalPct' ||
       columnKey === 'displayKatapultExistingPct' || columnKey === 'displayKatapultFinalPct') {
     
@@ -107,46 +106,80 @@ const shouldFlagForReview = (pole: ProcessedPole, columnKey: string): boolean =>
   return false;
 };
 
+// Get match tier badge styling
+const getMatchTierBadge = (tier: MatchTier) => {
+  const badgeConfig = {
+    [MatchTier.SCID_EXACT_MATCH]: { label: 'Exact Match', class: 'badge-success' },
+    [MatchTier.POLE_NUMBER_MATCH]: { label: 'Pole Number', class: 'badge-info' },
+    [MatchTier.COORDINATE_DIRECT_MATCH]: { label: 'Coordinate', class: 'badge-warning' },
+    [MatchTier.COORDINATE_SPEC_VERIFIED]: { label: 'Coord + Spec', class: 'badge-warning' },
+    [MatchTier.UNMATCHED_SPIDA]: { label: 'Unmatched SPIDA', class: 'badge-error' },
+    [MatchTier.UNMATCHED_KATAPULT]: { label: 'Unmatched Katapult', class: 'badge-error' },
+  };
+  return badgeConfig[tier];
+};
+
 export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetails }) => {
-  const [showErrorsOnly, setShowErrorsOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<'summary' | 'detailed'>('summary');
+  const [filterType, setFilterType] = useState<'all' | 'errors' | 'warnings' | 'edited'>('all');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const stats = useMemo(() => {
+    const errorCount = data.filter(hasErrors).length;
+    const reviewCount = data.filter(pole => 
+      shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
+      shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
+      shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
+      shouldFlagForReview(pole, 'displayKatapultFinalPct')
+    ).length;
+    const editedCount = data.filter(pole => pole.isEdited).length;
+    
+    return { errorCount, reviewCount, editedCount, totalCount: data.length };
+  }, [data]);
 
   const filteredData = useMemo(() => {
-    if (!showErrorsOnly) return data;
-    return data.filter(hasErrors);
-  }, [data, showErrorsOnly]);
+    switch (filterType) {
+      case 'errors':
+        return data.filter(hasErrors);
+      case 'warnings':
+        return data.filter(pole => 
+          shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
+          shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
+          shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
+          shouldFlagForReview(pole, 'displayKatapultFinalPct')
+        );
+      case 'edited':
+        return data.filter(pole => pole.isEdited);
+      default:
+        return data;
+    }
+  }, [data, filterType]);
 
-  const errorCount = useMemo(() => {
-    return data.filter(hasErrors).length;
-  }, [data]);
-
-  const reviewCount = useMemo(() => {
-    return data.filter(pole => {
-      // Check if any of the percentage columns should be flagged for review
-      return shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
-             shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
-             shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
-             shouldFlagForReview(pole, 'displayKatapultFinalPct');
-    }).length;
-  }, [data]);
+  const toggleRowExpansion = (poleId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(poleId)) {
+      newExpanded.delete(poleId);
+    } else {
+      newExpanded.add(poleId);
+    }
+    setExpandedRows(newExpanded);
+  };
 
   if (!data || data.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-        <div className="w-20 h-20 bg-slate-700/50 rounded-full flex items-center justify-center">
-          <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2H9a2 2 0 012 2z" />
-          </svg>
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-slate-200">No comparison data</h3>
-          <p className="text-slate-400 max-w-md">
-            Load your SPIDA and Katapult JSON files, then run the comparison to see detailed results here.
-          </p>
-        </div>
-        <div className="flex space-x-1">
-          <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D9E8F7' }}></div>
-          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse delay-100"></div>
-          <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-200"></div>
+      <div className="card h-full flex flex-col items-center justify-center text-center py-12">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center">
+            <svg className="w-10 h-10 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2H9a2 2 0 012 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="card-title">No comparison data</h3>
+            <p className="card-description mt-2">
+              Load your SPIDA and Katapult JSON files, then run the comparison to see detailed results here.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -161,238 +194,291 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Table Header with Summary and Filter Toggle */}
-      <div className="flex-shrink-0 p-4 bg-slate-800/90 border-b border-slate-700/50">
+    <div className="card h-full flex flex-col p-0">
+      {/* Header without Summary Cards */}
+      <div className="border-b border-primary p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-200">Comparison Results</h3>
-            <div className="flex items-center space-x-4 text-sm text-slate-400">
-              <span>
-                Showing {filteredData.length} of {data.length} pole{data.length !== 1 ? 's' : ''}
-              </span>
-              {errorCount > 0 && (
-                <span className="text-red-400">
-                  ({errorCount} with errors)
-                </span>
-              )}
-              {reviewCount > 0 && (
-                <span className="text-yellow-400">
-                  ({reviewCount} flagged for review)
-                </span>
-              )}
-            </div>
+            <h3 className="card-title">Katapult Attribute Check</h3>
+            <p className="card-description">Verify pole heights, wires, and attachments match between Katapult and SPIDAcalc</p>
           </div>
           
-          <div className="flex items-center space-x-6">
-            {/* Filter Toggle */}
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-slate-300">Filter:</span>
-              <div className="flex items-center space-x-2">
-                <span className={`text-xs transition-colors duration-200 ${!showErrorsOnly ? 'font-medium' : 'text-slate-400'}`} style={{ color: !showErrorsOnly ? '#D9E8F7' : undefined }}>
-                  All
-                </span>
-                                  <button
-                  onClick={() => setShowErrorsOnly(!showErrorsOnly)}
-                  className={`
-                    relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800
-                    ${showErrorsOnly ? 'bg-red-500' : 'bg-slate-600'}
-                  `}
-                  style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
-                >
-                  <span
-                    className={`
-                      inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200
-                      ${showErrorsOnly ? 'translate-x-6' : 'translate-x-1'}
-                    `}
-                  />
-                </button>
-                <span className={`text-xs transition-colors duration-200 ${showErrorsOnly ? 'text-red-400 font-medium' : 'text-slate-400'}`}>
-                  Errors Only
-                </span>
-              </div>
-            </div>
+          {/* View Mode Toggle */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setViewMode('summary')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                viewMode === 'summary' 
+                  ? 'bg-accent text-white' 
+                  : 'bg-secondary text-secondary hover:bg-hover'
+              }`}
+            >
+              Summary
+            </button>
+            <button
+              onClick={() => setViewMode('detailed')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                viewMode === 'detailed' 
+                  ? 'bg-accent text-white' 
+                  : 'bg-secondary text-secondary hover:bg-hover'
+              }`}
+            >
+              Detailed
+            </button>
+          </div>
+        </div>
 
-            {/* Legend */}
-            <div className="flex items-center space-x-4 text-xs text-slate-400">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500/30 rounded"></div>
-                <span>Mismatch</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-400/40 rounded"></div>
-                <span>Review Flag</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-500/30 rounded"></div>
-                <span>Edited</span>
-              </div>
-            </div>
+        {/* Filter Controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <span className="text-sm font-medium text-secondary">Status:</span>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className="select"
+            >
+              <option value="all">All Statuses</option>
+              <option value="errors">Errors Only</option>
+              <option value="warnings">Warnings Only</option>
+              <option value="edited">Edited Only</option>
+            </select>
+          </div>
+          
+          <div className="text-sm text-muted">
+            Showing {filteredData.length} of {stats.totalCount} items
           </div>
         </div>
       </div>
 
-      {/* Scrollable Table Container */}
+      {/* Data Display */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-full">
-          <table className="w-full divide-y divide-slate-700/50">
-            <thead className="bg-slate-800/50 sticky top-0 z-10">
-              <tr>
-                {TABLE_COLUMNS.map((col, index) => (
-                  <th 
-                    key={col.key} 
-                    scope="col" 
-                    className={`
-                      px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider
-                      border-r border-slate-700/30 last:border-r-0
-                      ${col.className || ''}
-                      ${index === 0 ? 'sticky left-0 bg-slate-800/90 z-20' : ''}
-                    `}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <span>{col.label}</span>
-                      {col.editable && (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#D9E8F7' }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      )}
+        {viewMode === 'summary' ? (
+          /* Summary View - Card-based layout */
+          <div className="p-6 space-y-4">
+            {filteredData.map((pole) => {
+              const hasError = hasErrors(pole);
+              const hasWarning = shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
+                               shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
+                               shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
+                               shouldFlagForReview(pole, 'displayKatapultFinalPct');
+              const isExpanded = expandedRows.has(pole.id);
+              const tierBadge = getMatchTierBadge(pole.matchTier);
+
+              return (
+                <div
+                  key={pole.id}
+                  className={`card transition-all hover:shadow-lg ${
+                    hasError ? 'border-error' : hasWarning ? 'border-warning' : pole.isEdited ? 'border-accent' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 flex-1">
+                      {/* Match Tier Badge */}
+                      <div className={`badge ${tierBadge.class}`}>
+                        {tierBadge.label}
+                      </div>
+                      
+                      {/* Primary Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <div className="text-sm font-medium text-primary">
+                              SPIDA: {pole.displaySpidaScid || 'N/A'}
+                            </div>
+                            <div className="text-xs text-secondary">
+                              Pole: {pole.displaySpidaPoleNum || 'N/A'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-primary">
+                              Katapult: {pole.displayKatapultScid || 'N/A'}
+                            </div>
+                            <div className="text-xs text-secondary">
+                              Pole: {pole.displayKatapultPoleNum || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Indicators */}
+                      <div className="flex items-center space-x-2">
+                        {hasError && (
+                          <span className="badge badge-error">Error</span>
+                        )}
+                        {hasWarning && (
+                          <span className="badge badge-warning">Review</span>
+                        )}
+                        {pole.isEdited && (
+                          <span className="badge badge-info">Edited</span>
+                        )}
+                      </div>
                     </div>
-                  </th>
-                ))}
-                <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider min-w-[120px]">
-                  Actions
-                </th>
+
+                    {/* Actions */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => onViewDetails(pole)}
+                        className="btn btn-ghost btn-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      
+                      <button
+                        onClick={() => toggleRowExpansion(pole.id)}
+                        className="btn btn-ghost btn-sm"
+                      >
+                        <svg 
+                          className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-primary">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="text-sm font-semibold text-secondary mb-2">SPIDA Data</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted">Spec:</span>
+                              <span className="text-primary">{pole.editableSpidaSpec || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Existing %:</span>
+                              <span className="text-primary">{pole.editableSpidaExistingPct || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Final %:</span>
+                              <span className="text-primary">{pole.editableSpidaFinalPct || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Comm Drop:</span>
+                              <span className="text-primary">{pole.editableSpidaCommDrop || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="text-sm font-semibold text-secondary mb-2">Katapult Data</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted">Spec:</span>
+                              <span className="text-primary">{pole.displayKatapultPoleSpec || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Existing %:</span>
+                              <span className="text-primary">{pole.displayKatapultExistingPct || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Final %:</span>
+                              <span className="text-primary">{pole.displayKatapultFinalPct || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted">Comm Drop:</span>
+                              <span className="text-primary">{pole.displayKatapultCommDrop || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Detailed View - Improved Table */
+          <table className="table">
+            <thead>
+              <tr>
+                <th className="sticky-column min-w-[180px]">Match Tier</th>
+                <th className="min-w-[130px]">SPIDA SCID</th>
+                <th className="min-w-[130px]">Katapult SCID</th>
+                <th className="min-w-[130px]">SPIDA Pole #</th>
+                <th className="min-w-[130px]">Katapult Pole #</th>
+                <th className="min-w-[160px]">SPIDA Spec</th>
+                <th className="min-w-[160px]">Katapult Spec</th>
+                <th className="min-w-[120px]">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/30">
-              {filteredData.map((pole, rowIndex) => (
-                <tr 
-                  key={pole.id} 
-                  className={`
-                    group transition-all duration-200
-                    hover:bg-slate-700/20 hover:shadow-lg hover:shadow-black/10
-                    ${pole.isEdited ? EDIT_HIGHLIGHT_CLASS : ''}
-                    ${rowIndex % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/10'}
-                  `}
-                >
-                  {TABLE_COLUMNS.map((col, colIndex) => {
-                    const value = pole[col.key as keyof ProcessedPole] as string | number | boolean;
-                    const mismatchClass = getMismatchClass(pole, col.key);
-                    const reviewFlag = shouldFlagForReview(pole, col.key);
-                    const tierColorClass = col.key === 'matchTier' ? MATCH_TIER_COLORS[pole.matchTier] : '';
-                    
-                    // Priority: mismatch (red) > review flag (yellow) > normal
-                    const highlightClass = mismatchClass ? mismatchClass : (reviewFlag ? REVIEW_FLAG_CLASS : '');
-                    
-                    return (
-                      <td 
-                        key={col.key} 
-                        className={`
-                          px-4 py-3 text-sm transition-all duration-200
-                          border-r border-slate-700/20 last:border-r-0
-                          ${tierColorClass} ${highlightClass} ${col.className || ''}
-                          ${colIndex === 0 ? 'sticky left-0 bg-slate-800/90 z-10 group-hover:bg-slate-700/40' : ''}
-                          ${highlightClass ? 'animate-pulse' : ''}
-                        `}
+            <tbody>
+              {filteredData.map((pole) => {
+                const hasError = hasErrors(pole);
+                const hasWarning = shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
+                                 shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
+                                 shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
+                                 shouldFlagForReview(pole, 'displayKatapultFinalPct');
+                const tierBadge = getMatchTierBadge(pole.matchTier);
+
+                return (
+                  <tr 
+                    key={pole.id} 
+                    className={`${
+                      hasError ? 'has-error' : 
+                      hasWarning ? 'has-warning' : 
+                      pole.isEdited ? 'is-edited' : ''
+                    }`}
+                  >
+                    <td className="sticky-column">
+                      <div className={`badge ${tierBadge.class}`}>
+                        {tierBadge.label}
+                      </div>
+                    </td>
+                    <td className={getMismatchClass(pole, 'displaySpidaScid')}>
+                      {pole.displaySpidaScid || 'N/A'}
+                    </td>
+                    <td className={getMismatchClass(pole, 'displayKatapultScid')}>
+                      {pole.displayKatapultScid || 'N/A'}
+                    </td>
+                    <td className={getMismatchClass(pole, 'displaySpidaPoleNum')}>
+                      {pole.displaySpidaPoleNum || 'N/A'}
+                    </td>
+                    <td className={getMismatchClass(pole, 'displayKatapultPoleNum')}>
+                      {pole.displayKatapultPoleNum || 'N/A'}
+                    </td>
+                    <td className={getMismatchClass(pole, 'editableSpidaSpec')}>
+                      {pole.spida ? (
+                        <input
+                          type="text"
+                          value={pole.editableSpidaSpec}
+                          onChange={(e) => handleInputChange(pole.id, 'editableSpidaSpec', e.target.value)}
+                          className="input w-full"
+                        />
+                      ) : (
+                        pole.editableSpidaSpec || 'N/A'
+                      )}
+                    </td>
+                    <td className={getMismatchClass(pole, 'displayKatapultPoleSpec')}>
+                      {pole.displayKatapultPoleSpec || 'N/A'}
+                    </td>
+                    <td>
+                      <button 
+                        onClick={() => onViewDetails(pole)}
+                        className="btn btn-ghost btn-sm"
                       >
-                        {col.editable && pole.spida ? (
-                          col.type === 'select' && col.options ? (
-                            <select
-                              value={value as string}
-                              onChange={(e) => handleSelectChange(pole.id, col.key as keyof ProcessedPole, e.target.value)}
-                              className="
-                                w-full bg-slate-700/80 border border-slate-600/50 text-slate-200 text-sm 
-                                rounded-lg shadow-sm transition-all duration-200
-                                focus:ring-2 focus:border-emerald-500/50 
-                                hover:bg-slate-600/80 hover:border-slate-500/50
-                                p-2
-                              "
-                              style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
-                            >
-                              {col.options.map(opt => <option key={opt} value={opt}>{opt || 'N/A'}</option>)}
-                            </select>
-                          ) : col.type === 'number' && (col.key === 'editableSpidaExistingPct' || col.key === 'editableSpidaFinalPct') ? (
-                            <div className="relative w-full">
-                              <input
-                                type="number"
-                                value={value as string | number}
-                                onChange={(e) => handleInputChange(pole.id, col.key as keyof ProcessedPole, e.target.value)}
-                                className="
-                                  w-full bg-slate-700/80 border border-slate-600/50 text-slate-200 text-sm 
-                                  rounded-lg shadow-sm transition-all duration-200
-                                  focus:ring-2 focus:border-emerald-500/50 
-                                  hover:bg-slate-600/80 hover:border-slate-500/50
-                                  p-2 pr-8
-                                "
-                                style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
-                              />
-                              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none text-sm">
-                                %
-                              </span>
-                            </div>
-                          ) : (
-                            <input
-                              type={col.type || 'text'}
-                              value={value as string | number}
-                              onChange={(e) => handleInputChange(pole.id, col.key as keyof ProcessedPole, e.target.value)}
-                              className="
-                                w-full bg-slate-700/80 border border-slate-600/50 text-slate-200 text-sm 
-                                rounded-lg shadow-sm transition-all duration-200
-                                focus:ring-2 focus:border-emerald-500/50 
-                                hover:bg-slate-600/80 hover:border-slate-500/50
-                                p-2
-                              "
-                              style={{ '--tw-ring-color': '#D9E8F7' } as React.CSSProperties}
-                            />
-                          )
-                        ) : (
-                          <div className={`
-                            text-slate-300 
-                            ${col.key === 'matchTier' ? 'font-medium' : ''}
-                            ${value?.toString() === 'N/A' ? 'text-slate-500 italic' : ''}
-                          `}>
-                            {value?.toString() ?? 'N/A'}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="px-4 py-3 text-sm min-w-[120px]">
-                    <button 
-                      onClick={() => onViewDetails(pole)}
-                      className="
-                        inline-flex items-center space-x-1 px-3 py-1.5 
-                        border rounded-lg font-medium text-xs
-                        transition-all duration-200 transform hover:scale-105
-                        focus:outline-none focus:ring-2
-                      "
-                      style={{
-                        backgroundColor: '#D9E8F7' + '20',
-                        color: '#D9E8F7',
-                        borderColor: '#D9E8F7' + '50',
-                        '--tw-ring-color': '#D9E8F7'
-                      } as React.CSSProperties}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#D9E8F7' + '30';
-                        e.currentTarget.style.color = '#D9E8F7';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#D9E8F7' + '20';
-                        e.currentTarget.style.color = '#D9E8F7';
-                      }}
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      <span>Details</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span>Details</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
     </div>
   );

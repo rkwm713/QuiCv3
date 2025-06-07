@@ -3,15 +3,16 @@
  * This file is kept for backward compatibility only
  */
 import React from 'react';
-import { ProcessedPole } from '../types';
+import { SpidaJsonFullFormat, KatapultJsonFormat } from '../types';
 import { HeightComparison } from './height-comparison';
 
 interface HeightComparisonTableProps {
-  poles: ProcessedPole[];
+  spidaJson: SpidaJsonFullFormat | null;
+  katapultJson?: KatapultJsonFormat | null;
 }
 
-const HeightComparisonTable: React.FC<HeightComparisonTableProps> = ({ poles }) => {
-  return <HeightComparison poles={poles} />;
+const HeightComparisonTable: React.FC<HeightComparisonTableProps> = ({ spidaJson, katapultJson }) => {
+  return <HeightComparison spidaJson={spidaJson} katapultJson={katapultJson} />;
 };
 
 export default HeightComparisonTable; 

@@ -147,8 +147,8 @@ export function exportKatapultAttributeUpdateExcel(
     return {
       'Latitude': spidaPoleData.coords?.lat?.toFixed(6) ?? 'N/A',
       'Longitude': spidaPoleData.coords?.lon?.toFixed(6) ?? 'N/A',
-      'Existing Loading %': formatPercentage(p.editableSpidaExistingPct),
-      'Final Loading %': formatPercentage(p.editableSpidaFinalPct),
+      'Existing Capacity %': formatPercentage(p.editableSpidaExistingPct),
+      'Final Passing Capacity %': formatPercentage(p.editableSpidaFinalPct),
       'Pole Spec': p.editableSpidaSpec || 'N/A',
       'Stress MR Notes': '', // Empty as requested
     };
@@ -159,13 +159,13 @@ export function exportKatapultAttributeUpdateExcel(
   // Format percentage columns as text to preserve % symbols
   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
   for (let row = range.s.r + 1; row <= range.e.r; row++) {
-    // Column C (Existing Loading %) - index 2
+    // Column C (Existing Capacity %) - index 2
     const cellC = XLSX.utils.encode_cell({ r: row, c: 2 });
     if (worksheet[cellC] && worksheet[cellC].v !== 'N/A') {
       worksheet[cellC].t = 's'; // Set cell type to string
     }
     
-    // Column D (Final Loading %) - index 3  
+    // Column D (Final Passing Capacity %) - index 3  
     const cellD = XLSX.utils.encode_cell({ r: row, c: 3 });
     if (worksheet[cellD] && worksheet[cellD].v !== 'N/A') {
       worksheet[cellD].t = 's'; // Set cell type to string

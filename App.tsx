@@ -5,8 +5,6 @@ import { DataTable } from './components/DataTable';
 import { MapWithSelector } from './components/MapWithSelector';
 import { StatusDisplay } from './components/StatusDisplay';
 import { PoleDetailModal } from './components/PoleDetailModal';
-import { IconButton } from './components/IconButton';
-import LandingPage from './components/LandingPage';
 import { 
   IntermediateSpidaPole,
   ProcessedPole, 
@@ -37,33 +35,6 @@ import {
 } from './services/dataProcessingService';
 import { generateSpidaJsonWithUpdates, exportToCsv, exportKatapultAttributeUpdateExcel } from './services/exportService';
 import { INITIAL_STATS, ALLOWED_KATAPULT_NODE_TYPES }  from './constants';
-
-const UploadIcon: React.FC = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-  </svg>
-);
-const CompareIcon: React.FC = () => (
- <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
-</svg>
-);
-const ExportIcon: React.FC = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-  </svg>
-);
-const SaveIcon: React.FC = () => (
- <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-</svg>
-);
-
-const ResetIcon: React.FC = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-  </svg>
-);
 
 // Helper function to extract the pole number string for normalization
 function getPoleNumDisplayString(
@@ -156,11 +127,7 @@ function collectKatapultBirthmarks(jsonData: KatapultJsonFormat): Record<string,
   return birthmarks;
 }
 
-
 const App: React.FC = () => {
-  // Landing page state - show landing page by default
-  const [showLandingPage, setShowLandingPage] = useState(true);
-
   const [rawSpidaJson, setRawSpidaJson] = useState<SpidaJsonFullFormat | null>(null);
   const [_spidaAliasTable, setSpidaAliasTable] = useState<Record<string, string>>({});
   const [normalizedSpidaData, setNormalizedSpidaData] = useState<NormalizedPole[] | null>(null);
@@ -527,10 +494,6 @@ const App: React.FC = () => {
     }
   }, [normalizedSpidaData, normalizedKatapultData, spidaFileName, katapultFileName]);
 
-  const handleEnterApp = useCallback(() => {
-    setShowLandingPage(false);
-  }, []);
-
   const dataSourceSection = (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <FileLoader 
@@ -540,7 +503,6 @@ const App: React.FC = () => {
         isLoading={isLoadingSpida} 
         loadedFileName={spidaFileName}
         idPrefix="spida"
-        icon={<UploadIcon />}
       />
       <FileLoader 
         key={`katapult-${resetKey}`}
@@ -549,57 +511,50 @@ const App: React.FC = () => {
         isLoading={isLoadingKatapult}
         loadedFileName={katapultFileName}
         idPrefix="katapult"
-        icon={<UploadIcon />}
       />
     </div>
   );
 
   const analysisSection = (
-    <IconButton 
+    <button 
       onClick={handleCompare} 
       disabled={isLoadingSpida || isLoadingKatapult || isComparing || !normalizedSpidaData || !normalizedKatapultData}
-      className="w-full justify-center"
-      icon={<CompareIcon />}
+      className="btn btn-primary w-full"
     >
       {isComparing ? 'Comparing...' : 'Run Comparison'}
-    </IconButton>
+    </button>
   );
 
   const exportSection = (
-     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-      <IconButton 
+     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <button 
         onClick={handleExportCsv} 
         disabled={processedPoles.length === 0 || isComparing}
-        className="w-full justify-center text-sm"
-        icon={<ExportIcon />}
+        className="btn btn-secondary w-full"
       >
         Export CSV
-      </IconButton>
-      <IconButton 
+      </button>
+      <button 
         onClick={handleExportSpidaJson} 
         disabled={!rawSpidaJson || isComparing || processedPoles.length === 0}
-        className="w-full justify-center text-sm"
-        icon={<SaveIcon />}
+        className="btn btn-secondary w-full"
       >
         Save SPIDA JSON
-      </IconButton>
-       <IconButton 
+      </button>
+       <button 
         onClick={handleExportKatapultAttributeUpdate} 
         disabled={processedPoles.length === 0 || isComparing}
-        className="w-full justify-center text-sm sm:col-span-2 lg:col-span-1 xl:col-span-2"
-        icon={<ExportIcon />}
+        className="btn btn-secondary w-full"
       >
         Export Katapult Attributes (XLSX)
-      </IconButton>
-      <IconButton 
+      </button>
+      <button 
         onClick={handleReset} 
         disabled={isLoadingSpida || isLoadingKatapult || isComparing}
-        className="w-full justify-center text-sm sm:col-span-2 lg:col-span-1 xl:col-span-2 bg-red-600/20 hover:bg-red-600/30 border-red-500/50 text-red-300"
-        icon={<ResetIcon />}
+        className="btn btn-danger w-full"
       >
         Reset All Data
-      </IconButton>
-
+      </button>
     </div>
   );
 
@@ -614,11 +569,6 @@ const App: React.FC = () => {
   const mapSection = (
     <MapWithSelector processedPoles={processedPoles} onPoleClick={handleViewDetails} />
   );
-
-  // If landing page should be shown, render it instead of the dashboard
-  if (showLandingPage) {
-    return <LandingPage onEnterApp={handleEnterApp} />;
-  }
 
   return (
     <>
@@ -666,6 +616,8 @@ const App: React.FC = () => {
           }
         }}
         poleData={processedPoles}
+        spidaJson={rawSpidaJson}
+        katapultJson={_rawKatapultJsonFull}
       />
       <PoleDetailModal pole={selectedPoleForModal} onClose={handleCloseModal} />
     </>
