@@ -5,6 +5,7 @@ interface DataTableProps {
   data: ProcessedPole[];
   onEdit: (poleId: string, field: keyof ProcessedPole, value: string | number | boolean) => void;
   onViewDetails: (pole: ProcessedPole) => void;
+  onExportKatapultAttributes?: () => void;
 }
 
 // Helper function for strict visual comparison (for UI highlighting)
@@ -151,7 +152,7 @@ const shouldFlagForReview = (pole: ProcessedPole, columnKey: string): boolean =>
   return false;
 };
 
-export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetails }) => {
+export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetails, onExportKatapultAttributes }) => {
   const [filterType, setFilterType] = useState<'all' | 'errors' | 'warnings' | 'edited'>('all');
 
   const stats = useMemo(() => {
@@ -219,8 +220,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
             <p className="card-description">Verify pole heights, wires, and attachments match between Katapult and SPIDAcalc</p>
           </div>
           
-          {/* Filter Controls */}
-          <div className="flex items-center justify-between">
+          {/* Export button and Filter Controls */}
+          <div className="flex items-center justify-between w-full">
+            {onExportKatapultAttributes && (
+              <button
+                onClick={onExportKatapultAttributes}
+                className="btn btn-secondary mr-4 whitespace-nowrap"
+              >
+                Export Katapult Attributes
+              </button>
+            )}
             <div className="flex items-center space-x-4">
               <span className="text-sm font-medium text-secondary">Status:</span>
               <select
@@ -271,11 +280,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
               return (
                 <tr 
                   key={pole.id} 
-                  className={`${
-                    hasError ? 'has-error' : 
-                    hasWarning ? 'has-warning' : 
-                    pole.isEdited ? 'is-edited' : ''
-                  }`}
+                  className={`${pole.isEdited ? 'is-edited' : ''}`}
                 >
                   <td className={getMismatchClass(pole, 'displaySpidaScid')}>
                     {pole.displaySpidaScid || 'N/A'}

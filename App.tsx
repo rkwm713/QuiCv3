@@ -563,7 +563,12 @@ const App: React.FC = () => {
   );
 
   const dataTableSection = (
-    <DataTable data={processedPoles} onEdit={handleEditPole} onViewDetails={handleViewDetails} />
+    <DataTable 
+      data={processedPoles} 
+      onEdit={handleEditPole} 
+      onViewDetails={handleViewDetails}
+      onExportKatapultAttributes={handleExportKatapultAttributeUpdate}
+    />
   );
   
   const mapSection = (

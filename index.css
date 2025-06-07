@@ -613,7 +613,7 @@ body {
 .table td {
   padding: 0.875rem 0.75rem;
   border-bottom: 1px solid var(--border-primary);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .table tbody tr:hover {
