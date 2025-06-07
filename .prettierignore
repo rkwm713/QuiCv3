@@ -1,0 +1,15 @@
+# Directories
+node_modules
+build
+dist
+coverage
+
+# Files
+*.min.*
+*.lock
+
+# Generated assets
+public/*
+
+# Keep config files formatted
+!.prettierrc
