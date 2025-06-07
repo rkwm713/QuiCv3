@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ProcessedPole } from '../types';
 import { OpenAIService } from '../services/openaiService';
-import { getAnalysisLoadPercent } from '../services/dataProcessingService';
 
 // Enhanced change summary interface following the user's roadmap
 interface PoleChangeSummary {
@@ -33,7 +32,7 @@ interface CoverSheetTableProps {
 }
 
 // Helper function to extract attachment changes
-function extractAttachmentChanges(spidaData: any, katapultData: any): { added: string[], removed: string[], relocated: string[] } {
+function extractAttachmentChanges(spidaData: any): { added: string[], removed: string[], relocated: string[] } {
   const added: string[] = [];
   const removed: string[] = [];
   const relocated: string[] = [];
@@ -149,8 +148,7 @@ function summarizePoleChanges(pole: any): PoleChangeSummary {
   
   // Extract attachment changes
   const { added, removed, relocated } = extractAttachmentChanges(
-    pole.spida?.rawData, 
-    pole.katapult?.rawData
+    pole.spida?.rawData
   );
 
   // Check for height changes

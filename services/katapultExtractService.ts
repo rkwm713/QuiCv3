@@ -117,7 +117,7 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
   });
 
   // Extract span-based attachments from connections
-  Object.entries(connections).forEach(([connId, conn]) => {
+  Object.entries(connections).forEach(([_, conn]) => {
     const { node_id_1, node_id_2, sections } = conn;
     
     if (!node_id_1 || !node_id_2 || !sections) return;
@@ -127,11 +127,11 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
     
     if (!node1Coords || !node2Coords) return;
 
-    Object.entries(sections).forEach(([sectionKey, section]: [string, any]) => {
+    Object.entries(sections).forEach(([_, section]: [string, any]) => {
       if (!section.photos) return;
 
       // Process each photo in the section
-      Object.entries(section.photos).forEach(([photoId, photo]: [string, any]) => {
+      Object.entries(section.photos).forEach(([_, photo]: [string, any]) => {
         if (!photo.photofirst_data) return;
 
         const photoData = photo.photofirst_data;
@@ -147,7 +147,7 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
               const heightInches = parseFloat(item._measured_height || '0');
               const heightFt = _to_feet_ts(heightInches);
 
-              if (heightFt && heightFt > 0) {
+              if (heightFt !== null && heightFt > 0) {
                 const id = `wire-${traceId}-${i}`;
                 const poleScid = node1Coords.scid;
 
@@ -192,7 +192,7 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
               const heightInches = parseFloat(item._measured_height || '0');
               const heightFt = _to_feet_ts(heightInches);
 
-              if (heightFt && heightFt > 0) {
+              if (heightFt !== null && heightFt > 0) {
                 const id = `equipment-${traceId}-${i}`;
                 const poleScid = node1Coords.scid;
 
@@ -224,7 +224,7 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
               const heightInches = parseFloat(item._measured_height || '0');
               const heightFt = _to_feet_ts(heightInches);
 
-              if (heightFt && heightFt > 0) {
+              if (heightFt !== null && heightFt > 0) {
                 const id = `guying-${traceId}-${i}`;
                 const poleScid = node1Coords.scid;
 
@@ -268,7 +268,7 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
 
     // Check if node has photos with attachments
     if (node.photos) {
-      Object.entries(node.photos).forEach(([photoId, photo]: [string, any]) => {
+      Object.entries(node.photos).forEach(([_, photo]: [string, any]) => {
         if (photo.association === 'main' && photo.photofirst_data) {
           const photoData = photo.photofirst_data;
 
@@ -283,7 +283,7 @@ export function extractKatapultAttachments(katapultJson: KatapultJsonFormat | nu
                 const heightInches = parseFloat(item._measured_height || '0');
                 const heightFt = _to_feet_ts(heightInches);
 
-                if (heightFt > 0) {
+                if (heightFt !== null && heightFt > 0) {
                   const id = `node-equipment-${traceId}-${i}`;
                   const poleScid = nodeCoords.scid;
 

@@ -559,7 +559,8 @@ export class HeightComparisonService {
       ok: 0,
       heightDiff: 0,
       onlyInKat: 0,
-      onlyInSpida: 0
+      onlyInSpida: 0,
+      maxDelta: 0
     };
 
     items.forEach(item => {
@@ -576,6 +577,11 @@ export class HeightComparisonService {
         case 'ONLY IN SPIDA':
           stats.onlyInSpida++;
           break;
+      }
+      
+      // Track the maximum delta
+      if (item.delta !== null && item.delta > stats.maxDelta) {
+        stats.maxDelta = item.delta;
       }
     });
 

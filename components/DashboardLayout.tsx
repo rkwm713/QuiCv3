@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { APP_TITLE } from '../constants';
 import DemoTutorial from './DemoTutorial';
 import AIAnalytics from './AIAnalytics';
 import HeightComparisonTable from './HeightComparisonTable';

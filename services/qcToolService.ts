@@ -13,18 +13,6 @@ import { _to_feet_ts } from './dataProcessingService';
 import { extractKatapultAttachments } from './katapultExtractService';
 
 /**
- * Format height in feet and inches
- */
-function formatFeetInches(metres: number): string {
-  const INCHES_IN_FOOT = 12;
-  const METRES_TO_INCHES = 39.3701;
-  const totalInches = metres * METRES_TO_INCHES;
-  const feet = Math.floor(totalInches / INCHES_IN_FOOT);
-  const inches = Math.round(totalInches % INCHES_IN_FOOT);
-  return `${feet}' ${inches}"`;
-}
-
-/**
  * Extract attachments from a SPIDA design based on SPIDAcalc structure
  */
 function extractAttachmentsFromDesign(
@@ -178,6 +166,7 @@ function extractAttachmentsFromDesign(
             size: String(size),
             height: heightFt,
             direction: typeof equipment.directionDegrees === 'number' ? equipment.directionDegrees : undefined,
+            source: layerType === 'Measured' ? 'spida-measured' : 'spida-recommended',
             rawData: equipment
           });
         }
@@ -215,6 +204,7 @@ function extractAttachmentsFromDesign(
             size: String(size),
             height: heightFt,
             direction: typeof crossArm.directionDegrees === 'number' ? crossArm.directionDegrees : undefined,
+            source: layerType === 'Measured' ? 'spida-measured' : 'spida-recommended',
             rawData: crossArm
           });
         }
@@ -253,6 +243,7 @@ function extractAttachmentsFromDesign(
             size: String(size),
             height: heightFt,
             direction: guy.direction ?? guy.directionDegrees,
+            source: layerType === 'Measured' ? 'spida-measured' : 'spida-recommended',
             rawData: guy
           });
         }
@@ -289,6 +280,7 @@ function extractAttachmentsFromDesign(
             size: String(size),
             height: heightFt,
             direction: spanGuy.direction ?? spanGuy.directionDegrees,
+            source: layerType === 'Measured' ? 'spida-measured' : 'spida-recommended',
             rawData: spanGuy
           });
         }
@@ -325,6 +317,7 @@ function extractAttachmentsFromDesign(
             size: String(size),
             height: heightFt,
             direction: wme.direction ?? wme.directionDegrees,
+            source: layerType === 'Measured' ? 'spida-measured' : 'spida-recommended',
             rawData: wme
           });
         }
@@ -361,6 +354,7 @@ function extractAttachmentsFromDesign(
           size: String(size),
           height: heightFt, // Could be 0 for ground level
           direction: anchor.direction ?? anchor.directionDegrees,
+          source: layerType === 'Measured' ? 'spida-measured' : 'spida-recommended',
           rawData: anchor
         });
       } catch (error) {

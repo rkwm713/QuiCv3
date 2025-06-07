@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { ProcessedPole, MatchTier } from '../types';
-import { TABLE_COLUMNS, MATCH_TIER_COLORS, MISMATCH_HIGHLIGHT_CLASS, EDIT_HIGHLIGHT_CLASS, REVIEW_FLAG_CLASS } from '../constants';
 
 interface DataTableProps {
   data: ProcessedPole[];
@@ -187,10 +186,6 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
 
   const handleInputChange = (poleId: string, field: keyof ProcessedPole, value: string) => {
     onEdit(poleId, field, value);
-  };
-
-  const handleSelectChange = (poleId: string, field: keyof ProcessedPole, value: string) => {
-     onEdit(poleId, field, value as 'Yes' | 'No' | '');
   };
 
   return (

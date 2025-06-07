@@ -1,6 +1,5 @@
 import React from 'react';
 import { HeightComparisonData } from '../../types';
-import { HEIGHT_COMPARISON_FILTERS } from './HeightComparisonConstants';
 
 interface HeightComparisonFiltersProps {
   comparisonData: HeightComparisonData;
@@ -14,14 +13,14 @@ interface HeightComparisonFiltersProps {
 }
 
 export const HeightComparisonFilters: React.FC<HeightComparisonFiltersProps> = ({
-  comparisonData,
-  threshold,
-  onThresholdChange,
-  statusFilter,
-  onStatusFilterChange,
-  itemTypeFilter,
-  onItemTypeFilterChange,
-  filteredItemsCount,
+  comparisonData: _comparisonData,
+  threshold: _threshold,
+  onThresholdChange: _onThresholdChange,
+  statusFilter: _statusFilter,
+  onStatusFilterChange: _onStatusFilterChange,
+  itemTypeFilter: _itemTypeFilter,
+  onItemTypeFilterChange: _onItemTypeFilterChange,
+  filteredItemsCount: _filteredItemsCount,
 }) => {
     return null;
 }; 
