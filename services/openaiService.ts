@@ -18,15 +18,20 @@ export class OpenAIService {
 
   /**
    * Generic helper that forwards an arbitrary prompt to the Netlify OpenAI function
+   * Now supports both streaming and non-streaming responses
    */
-  async generateAnalysis(prompt: string, analysisType: string = 'general'): Promise<string> {
+  async generateAnalysis(prompt: string, analysisType: string = 'general', useStreaming: boolean = true): Promise<string> {
     try {
       const response = await fetch(`${this.baseUrl}/openai-analysis`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt, analysisType })
+        body: JSON.stringify({ 
+          prompt, 
+          analysisType,
+          stream: useStreaming  // Enable streaming by default for better UX
+        })
       });
 
       if (!response.ok) {
@@ -40,6 +45,20 @@ export class OpenAIService {
       console.error('Error calling Netlify OpenAI function:', error);
       throw error;
     }
+  }
+
+  /**
+   * Generate analysis with streaming disabled (for backward compatibility)
+   */
+  async generateAnalysisNonStreaming(prompt: string, analysisType: string = 'general'): Promise<string> {
+    return this.generateAnalysis(prompt, analysisType, false);
+  }
+
+  /**
+   * Generate analysis with streaming enabled (default behavior)
+   */
+  async generateAnalysisStreaming(prompt: string, analysisType: string = 'general'): Promise<string> {
+    return this.generateAnalysis(prompt, analysisType, true);
   }
 
   /* =========================

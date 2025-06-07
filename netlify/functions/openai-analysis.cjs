@@ -102,7 +102,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const { prompt, analysisType = 'general' } = requestData;
+    const { prompt, analysisType = 'general', stream = false } = requestData;
     if (!prompt) {
       return {
         statusCode: 400,
@@ -116,29 +116,68 @@ exports.handler = async (event, context) => {
 
     const openai = new OpenAI({ apiKey });
 
-    // Reduce timeout to 8 seconds to fit within Netlify's 10-second limit
-    const response = await Promise.race([
-      openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
-        max_tokens: 500  // Reduced from 800 to get faster responses
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout after 8 seconds')), 8000))
-    ]);
+    // Check if streaming is requested
+    if (stream) {
+      // Return streaming response
+      const stream = await Promise.race([
+        openai.chat.completions.create({
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1000,
+          stream: true
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout after 22 seconds')), 22000))
+      ]);
 
-    const text = response.choices[0].message.content;
+      // For streaming, we need to collect chunks and return complete response
+      // Since Netlify Functions don't support true streaming to browser
+      let fullResponse = '';
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        fullResponse += content;
+      }
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-      },
-      body: JSON.stringify({ result: text, analysisType, timestamp: new Date().toISOString() })
-    };
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        },
+        body: JSON.stringify({ 
+          result: fullResponse, 
+          analysisType, 
+          timestamp: new Date().toISOString(),
+          streamed: true 
+        })
+      };
+    } else {
+      // Standard non-streaming response with Pro timeout (22 seconds, leaving 4 second buffer)
+      const response = await Promise.race([
+        openai.chat.completions.create({
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1000  // Increased from 500 back to reasonable level
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout after 22 seconds')), 22000))
+      ]);
+
+      const text = response.choices[0].message.content;
+
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        },
+        body: JSON.stringify({ result: text, analysisType, timestamp: new Date().toISOString() })
+      };
+    }
   } catch (error) {
     console.error('OpenAI API Error:', error);
 
