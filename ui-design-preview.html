@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuiC UI Design Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .design-container { border: 2px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">QuiC UI Design Previews</h1>
+        
+        <!-- Design 1: Single-Page Minimal -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Design 1: Single-Page Minimal Flow</h2>
+            <div class="design-container bg-gray-50">
+                <!-- Header -->
+                <header class="bg-white border-b border-gray-200">
+                    <div class="px-8 py-4 flex justify-between items-center">
+                        <h1 class="text-2xl font-semibold">QuiC</h1>
+                        <p class="text-sm text-gray-500">Quality Control for SPIDA & Katapult Data</p>
+                    </div>
+                </header>
+                
+                <!-- Progress Bar -->
+                <div class="px-8 py-6">
+                    <div class="flex items-center space-x-8">
+                        <div class="flex items-center space-x-2 text-green-600">
+                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">✓</div>
+                            <span class="text-sm font-medium">Upload Files</span>
+                        </div>
+                        <div class="h-px w-16 bg-green-300"></div>
+                        <div class="flex items-center space-x-2 text-gray-400">
+                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">2</div>
+                            <span class="text-sm font-medium">Compare Data</span>
+                        </div>
+                        <div class="h-px w-16 bg-gray-300"></div>
+                        <div class="flex items-center space-x-2 text-gray-400">
+                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">3</div>
+                            <span class="text-sm font-medium">Export Results</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Upload Section -->
+                <div class="px-8 pb-8">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="text-lg font-medium mb-4">SPIDA File</h3>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                                    <p class="text-gray-500">Upload SPIDA JSON</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium mb-4">Katapult File</h3>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                                    <p class="text-gray-500">Upload Katapult JSON</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-center">
+                            <button class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium">Compare Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Design 2: Sidebar Navigation -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Design 2: Sidebar Navigation</h2>
+            <div class="design-container bg-white flex" style="height: 400px;">
+                <!-- Sidebar -->
+                <div class="w-64 bg-gray-900 text-white">
+                    <div class="p-6">
+                        <h1 class="text-2xl font-bold">QuiC</h1>
+                        <p class="text-sm text-gray-400 mt-1">Quality Control</p>
+                    </div>
+                    <nav class="mt-8">
+                        <div class="px-6 py-3 bg-gray-800 border-l-4 border-blue-500">
+                            <div class="flex items-center space-x-3">
+                                <span>📤</span>
+                                <span>Upload Files</span>
+                                <span class="ml-auto text-green-400">✓</span>
+                            </div>
+                        </div>
+                        <div class="px-6 py-3 hover:bg-gray-800">
+                            <div class="flex items-center space-x-3">
+                                <span>📊</span>
+                                <span>Results</span>
+                            </div>
+                        </div>
+                        <div class="px-6 py-3 hover:bg-gray-800">
+                            <div class="flex items-center space-x-3">
+                                <span>🗺️</span>
+                                <span>Map View</span>
+                            </div>
+                        </div>
+                        <div class="px-6 py-3 hover:bg-gray-800">
+                            <div class="flex items-center space-x-3">
+                                <span>💾</span>
+                                <span>Export</span>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+                
+                <!-- Main Content -->
+                <div class="flex-1 p-8 overflow-auto">
+                    <h2 class="text-2xl font-semibold mb-6">Upload Files</h2>
+                    <div class="grid grid-cols-2 gap-8">
+                        <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                            <h3 class="text-lg font-medium mb-4">SPIDA File</h3>
+                            <div class="border-2 border-dashed border-gray-300 rounded p-8 text-center">
+                                <p class="text-gray-500">Drop SPIDA JSON or click to browse</p>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                            <h3 class="text-lg font-medium mb-4">Katapult File</h3>
+                            <div class="border-2 border-dashed border-gray-300 rounded p-8 text-center">
+                                <p class="text-gray-500">Drop Katapult JSON or click to browse</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Design 3: Tab-Based -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">Design 3: Tab-Based Minimal</h2>
+            <div class="design-container bg-gray-100">
+                <!-- Minimal Header -->
+                <header class="bg-white shadow-sm">
+                    <div class="px-8 py-3 flex justify-between items-center">
+                        <div class="flex items-center space-x-8">
+                            <h1 class="text-xl font-semibold">QuiC</h1>
+                            <div class="flex items-center space-x-4 text-sm">
+                                <div class="flex items-center space-x-2 text-green-600">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <span>SPIDA ✓</span>
+                                </div>
+                                <div class="flex items-center space-x-2 text-green-600">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <span>Katapult ✓</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3 text-sm">
+                            <button class="text-gray-600">Export CSV</button>
+                            <button class="text-gray-600">Export JSON</button>
+                            <span class="text-gray-300">|</span>
+                            <button class="text-red-600">Reset</button>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Stats Bar with Tabs -->
+                <div class="p-6">
+                    <div class="bg-white rounded-lg shadow-sm p-4">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center space-x-8 text-sm">
+                                <div><span class="text-gray-500">Total:</span> <span class="font-medium">245</span></div>
+                                <div><span class="text-gray-500">Matches:</span> <span class="font-medium text-green-600">220</span></div>
+                                <div><span class="text-gray-500">Height Δ:</span> <span class="font-medium text-yellow-600">15</span></div>
+                                <div><span class="text-gray-500">Class Δ:</span> <span class="font-medium text-yellow-600">8</span></div>
+                                <div><span class="text-gray-500">Species Δ:</span> <span class="font-medium text-yellow-600">2</span></div>
+                            </div>
+                            <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                                <button class="px-4 py-1.5 text-sm font-medium bg-white rounded-md shadow-sm">All Poles</button>
+                                <button class="px-4 py-1.5 text-sm font-medium text-gray-600">Mismatches</button>
+                                <button class="px-4 py-1.5 text-sm font-medium text-gray-600">Map</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Data Table Preview -->
+                    <div class="bg-white rounded-lg shadow-sm mt-4 p-4">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-sm text-gray-500 border-b">
+                                    <th class="pb-2">Pole ID</th>
+                                    <th class="pb-2">SPIDA Height</th>
+                                    <th class="pb-2">Katapult Height</th>
+                                    <th class="pb-2">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                <tr class="border-b">
+                                    <td class="py-2">P001</td>
+                                    <td class="py-2">45 ft</td>
+                                    <td class="py-2">45 ft</td>
+                                    <td class="py-2"><span class="text-green-600">✓ Match</span></td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="py-2">P002</td>
+                                    <td class="py-2">40 ft</td>
+                                    <td class="py-2">35 ft</td>
+                                    <td class="py-2"><span class="text-yellow-600">⚠ Mismatch</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
