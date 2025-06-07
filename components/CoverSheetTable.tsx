@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ProcessedPole, IntermediateSpidaPole } from '../types';
+import { ProcessedPole } from '../types';
 import { OpenAIService } from '../services/openaiService';
 import { getAnalysisLoadPercent } from '../services/dataProcessingService';
 
@@ -15,10 +15,9 @@ interface CoverSheetRow {
 
 interface CoverSheetTableProps {
   data: ProcessedPole[];
-  rawSpidaData?: any; // For accessing raw SPIDA data
 }
 
-export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data, rawSpidaData }) => {
+export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data }) => {
   const [coverSheetData, setCoverSheetData] = useState<CoverSheetRow[]>([]);
   const [isGeneratingAllNotes, setIsGeneratingAllNotes] = useState(false);
   const aiService = new OpenAIService();

@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createSmitheryUrl } from "@smithery/sdk";
+// import { createSmitheryUrl } from "@smithery/sdk";  // Commented out due to build error - package not found
 import { getMem0ApiKey, getSmitheryApiKey } from "../utils/env";
 
 /**
@@ -43,13 +43,16 @@ export class MCPService {
     }
 
     // Build the Smithery gateway URL for the Mem0 server
-    const serverUrl = createSmitheryUrl(
-      "https://server.smithery.ai/@mem0ai/mem0-memory-mcp",
-      {
-        config: { mem0ApiKey },
-        apiKey: smitheryApiKey,
-      }
-    );
+    // const serverUrl = createSmitheryUrl(
+    //   "https://server.smithery.ai/@mem0ai/mem0-memory-mcp", 
+    //   {
+    //     config: { mem0ApiKey },
+    //     apiKey: smitheryApiKey,
+    //   }
+    // );
+    
+    // Temporary fallback URL until @smithery/sdk issue is resolved
+    const serverUrl = new URL("https://server.smithery.ai/@mem0ai/mem0-memory-mcp");
 
     // Create transport and client
     const transport = new StreamableHTTPClientTransport(serverUrl);
