@@ -21,7 +21,7 @@ export const HeightComparison: React.FC<HeightComparisonProps> = ({ poles }) => 
   const comparisonData = useMemo((): HeightComparisonData => {
     return HeightComparisonService.generateHeightComparison(poles, threshold);
   }, [poles, threshold]);
-
+1
   // Filter and sort items
   const filteredAndSortedItems = useMemo(() => {
     let items = [...comparisonData.items];

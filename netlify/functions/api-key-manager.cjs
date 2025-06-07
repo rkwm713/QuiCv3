@@ -114,28 +114,62 @@ exports.handler = async (event, context) => {
 
         const encryptedKey = encrypt(apiKey);
         
-        // Use UPSERT (INSERT ... ON CONFLICT)
-        {
-          const bodyArr = [{ key_name: keyName, encrypted_value: encryptedKey }];
-          const res = await supabaseRequest('POST', '/rest/v1/api_keys?on_conflict=key_name&return=representation', bodyArr);
-          if (!res.ok) {
-            console.error('Supabase upsert error', res.status);
+        try {
+          // First try to update existing record
+          const updateRes = await supabaseRequest('PATCH', `/rest/v1/api_keys?key_name=eq.${keyName}`, {
+            encrypted_value: encryptedKey,
+            updated_at: new Date().toISOString()
+          });
+
+          if (updateRes.ok) {
+            // Check if any rows were affected
+            const updateResult = await updateRes.text();
+            console.log('Update result:', updateResult);
+            
+            // If no rows were updated, insert new record
+            if (!updateResult || updateResult === '[]') {
+              console.log('No existing record found, inserting new one');
+              const insertRes = await supabaseRequest('POST', '/rest/v1/api_keys', {
+                key_name: keyName,
+                encrypted_value: encryptedKey
+              });
+
+              if (!insertRes.ok) {
+                const errorText = await insertRes.text();
+                console.error('Supabase insert error:', insertRes.status, errorText);
+                return { 
+                  statusCode: 500, 
+                  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                  body: JSON.stringify({ error: 'Failed to store key', details: errorText }) 
+                };
+              }
+            }
+          } else {
+            const errorText = await updateRes.text();
+            console.error('Supabase update error:', updateRes.status, errorText);
             return { 
               statusCode: 500, 
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-              body: JSON.stringify({ error: 'Failed to store key' }) 
+              body: JSON.stringify({ error: 'Failed to store key', details: errorText }) 
             };
           }
-        }
 
-        return {
-          statusCode: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          },
-          body: JSON.stringify({ message: 'API key stored successfully' })
-        };
+          return {
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({ message: 'API key stored successfully' })
+          };
+        } catch (dbError) {
+          console.error('Database operation error:', dbError);
+          return { 
+            statusCode: 500, 
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ error: 'Failed to store key', details: dbError.message }) 
+          };
+        }
 
       case 'DELETE':
         // Delete API key
