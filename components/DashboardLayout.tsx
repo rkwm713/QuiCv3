@@ -4,6 +4,7 @@ import AIAnalytics from './AIAnalytics';
 import HeightComparisonTable from './HeightComparisonTable';
 import { CoverSheetTable } from './CoverSheetTable';
 import { DataManagement } from './DataManagement';
+import { MakeReadyReport } from './MakeReadyReport';
 
 interface DashboardLayoutProps {
   dataSourceSection: React.ReactNode;
@@ -193,7 +194,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   spidaJson,
   katapultJson,
 }) => {
-  const [activeTab, setActiveTab] = useState<'demo' | 'data-management' | 'table' | 'coversheet' | 'map' | 'analytics' | 'statistics' | 'qc'>('data-management');
+  const [activeTab, setActiveTab] = useState<'demo' | 'data-management' | 'table' | 'coversheet' | 'make-ready' | 'map' | 'analytics' | 'statistics' | 'qc'>('data-management');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -266,6 +267,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'qc' as const, name: 'QC Tool', icon: <QCIcon />, description: 'Compare pole and attachment heights' },
     { id: 'analytics' as const, name: 'Analytics', icon: <AnalyticsIcon />, description: 'AI-powered data insights' },
     { id: 'demo' as const, name: 'Demo & Tutorial', icon: <BookOpenIcon />, description: 'Learn how to use QuiC' },
+    { id: 'make-ready' as const, name: 'Make-Ready Report', icon: <TableIcon />, description: 'Generate Make-Ready Excel report' },
   ];
 
   return (
@@ -394,6 +396,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   poleData={poleData} 
                   hasComparisonRun={hasComparisonRun}
                 />
+              </div>
+            )}
+
+            {activeTab === 'make-ready' && (
+              <div className="content-container">
+                <MakeReadyReport katapultJson={katapultJson} />
               </div>
             )}
           </div>

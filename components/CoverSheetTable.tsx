@@ -2,18 +2,32 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ProcessedPole } from '../types';
 import { OpenAIService } from '../services/openaiService';
 
-// Enhanced change summary interface following the user's roadmap
+// New bucketised change summary interfaces
+interface ClearanceResolve {
+  type: 'power' | 'ground' | 'spacing';
+  action: 'lower' | 'raise' | 'adjust';
+}
+
+interface AnchorResolve {
+  type: 'comm-power' | 'comm-anchor';
+  action: 'rearrange' | 'adjust';
+}
+
 interface PoleChangeSummary {
   poleId: string;
-  added: string[];      // human-readable snippets
-  removed: string[];
-  relocated: string[];
-  heightChange?: string;
-  clearanceNote?: string;
-  guyWireNote?: string;
-  special?: string[];
-  loadingChange?: string;
-  specificationChange?: string;
+  installations: string[];      // e.g. "Charter Fiber", "Charter Fiber and riser"
+  clearanceResolves: ClearanceResolve[];
+  anchorResolves: AnchorResolve[];
+  proposedGuys: number;         // count of down guys
+  excavations: string[];        // e.g. "underground to Southeast service location"
+  removals: string[];           // e.g. "expired transformer bracket"
+  transfers: string[];          // e.g. "comms from stub pole"
+}
+
+// Utility to capitalise the first letter of a string
+function capitalize(str: string): string {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 interface CoverSheetRow {
@@ -145,78 +159,80 @@ function formatAttachmentDescription(attachment: any): string {
 // Enhanced function to summarize all pole changes
 function summarizePoleChanges(pole: any): PoleChangeSummary {
   const poleId = pole.displaySpidaScid || pole.displayKatapultScid || pole.id;
-  
-  // Extract attachment changes
-  const { added, removed, relocated } = extractAttachmentChanges(
-    pole.spida?.rawData
-  );
 
-  // Check for height changes
-  let heightChange: string | undefined;
-  if (pole.spida?.rawData) {
-    const measuredDesign = pole.spida.rawData.designs?.find((d: any) => d.layerType === "Measured");
-    const recommendedDesign = pole.spida.rawData.designs?.find((d: any) => d.layerType === "Recommended");
-    
-    if (measuredDesign && recommendedDesign) {
-      const measuredHeight = measuredDesign.pole?.length?.value || measuredDesign.structure?.pole?.length?.value;
-      const recommendedHeight = recommendedDesign.pole?.length?.value || recommendedDesign.structure?.pole?.length?.value;
-      
-      if (measuredHeight && recommendedHeight && Math.abs(recommendedHeight - measuredHeight) > 1) {
-        heightChange = `pole height changed from ${Math.round(measuredHeight)}′ to ${Math.round(recommendedHeight)}′`;
-      }
-    }
-  }
+  // Placeholder arrays – will attempt simple extraction with available data.
+  const installations: string[] = [];
+  const removals: string[] = [];
+  const transfers: string[] = [];
+  const excavations: string[] = [];
 
-  // Check for loading changes
-  let loadingChange: string | undefined;
-  const existingPct = pole.editableSpidaExistingPct || pole.displaySpidaExistingPct;
-  const finalPct = pole.editableSpidaFinalPct || pole.displaySpidaFinalPct;
-  
-  if (existingPct && finalPct && existingPct !== 'N/A' && finalPct !== 'N/A') {
-    const existingNum = parseFloat(existingPct);
-    const finalNum = parseFloat(finalPct);
-    if (Math.abs(finalNum - existingNum) > 1) {
-      loadingChange = `loading changed from ${existingNum.toFixed(1)}% to ${finalNum.toFixed(1)}%`;
-    }
-  }
+  // Use existing attachment diff util to approximate installations/removals/transfers
+  const { added, removed, relocated } = extractAttachmentChanges(pole.spida?.rawData);
+  installations.push(...added);
+  removals.push(...removed);
+  transfers.push(...relocated);
 
-  // Check for specification changes
-  let specificationChange: string | undefined;
-  const spidaSpec = pole.editableSpidaSpec || pole.displaySpidaPoleSpec;
-  const katapultSpec = pole.displayKatapultPoleSpec;
-  
-  if (spidaSpec && katapultSpec && spidaSpec !== katapultSpec && 
-      spidaSpec !== 'N/A' && katapultSpec !== 'N/A') {
-    specificationChange = `specification updated from ${katapultSpec} to ${spidaSpec}`;
-  }
+  // Rough heuristic: count how many of the added attachments mention 'guy'
+  const proposedGuys = added.filter((desc: string) => /guy/i.test(desc)).length;
 
-  // Identify special conditions
-  const special: string[] = [];
-  
-  // Check for high loading conditions
-  if (finalPct && finalPct !== 'N/A') {
-    const finalNum = parseFloat(finalPct);
-    if (finalNum > 80) {
-      special.push('high loading condition requires monitoring');
-    }
-  }
-
-  // Check for communication drops
-  const hasCommDrop = pole.editableSpidaCommDrop === 'Yes' || pole.displaySpidaCommDrop === 'Yes';
-  if (hasCommDrop) {
-    special.push('communication service drop present');
-  }
+  // TODO: Properly parse clearance and anchor resolutions from SPIDA analysis results.
+  const clearanceResolves: ClearanceResolve[] = [];
+  const anchorResolves: AnchorResolve[] = [];
 
   return {
     poleId,
-    added,
-    removed,
-    relocated,
-    heightChange,
-    loadingChange,
-    specificationChange,
-    special
+    installations,
+    clearanceResolves,
+    anchorResolves,
+    proposedGuys,
+    excavations,
+    removals,
+    transfers,
   };
+}
+
+// Build domain-aware sentence fragments as per enhanced roadmap
+function buildSentences(change: PoleChangeSummary): string[] {
+  const sents: string[] = [];
+
+  // 1. Clearance / anchor fixes
+  change.clearanceResolves.forEach(cr => {
+    const what = cr.type === 'power' ? 'comm' :
+                 cr.type === 'ground' ? 'comms' : 'clearances';
+    sents.push(`${capitalize(cr.action)} ${what} to resolve ${cr.type} clearance violation`);
+  });
+
+  change.anchorResolves.forEach(ar => {
+    const why = ar.type === 'comm-power' ? 'comm to power anchor violation' : 'comm anchor violation';
+    sents.push(`${capitalize(ar.action)} comm anchor to resolve ${why}`);
+  });
+
+  // 2. Installations
+  if (change.installations.length) {
+    sents.push(`Install ${change.installations.join(' and ')}`);
+  }
+
+  // 3. Down guys
+  if (change.proposedGuys > 0) {
+    const qty = change.proposedGuys > 1 ? `${change.proposedGuys} proposed down guys` : 'proposed down guy';
+    sents.push(`${capitalize(qty)} added`);
+  }
+
+  // 4. Excavations
+  change.excavations.forEach(ex => {
+    sents.push(`Bore underground to ${ex}`);
+  });
+
+  // 5. Removals / transfers
+  change.removals.forEach((r: string) => {
+    sents.push(`${capitalize(r)} removed`);
+  });
+  change.transfers.forEach((t: string) => {
+    sents.push(`Transfer ${t}`);
+  });
+
+  // Ensure all sentences end with a period.
+  return sents.map(s => (s.endsWith('.') ? s : s + '.'));
 }
 
 export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data }) => {
@@ -337,72 +353,30 @@ export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data }) => {
     );
 
     try {
-      // Step 1: Extract comprehensive change summary using new function
+      // Step 1: Build change summary and sentence fragments
       const changeSummary: PoleChangeSummary = summarizePoleChanges(pole);
-      
-      // Step 2: Build bullet-list prompt following the roadmap
-      const bullets = [
-        `• Pole: ${changeSummary.poleId}`,
-        ...changeSummary.added.map(a => `• Added: ${a}`),
-        ...changeSummary.removed.map(r => `• Removed: ${r}`),
-        ...changeSummary.relocated.map(r => `• Relocated: ${r}`),
-        changeSummary.heightChange && `• Height change: ${changeSummary.heightChange}`,
-        changeSummary.loadingChange && `• Loading: ${changeSummary.loadingChange}`,
-        changeSummary.specificationChange && `• Specification: ${changeSummary.specificationChange}`,
-        ...(changeSummary.special || []).map(s => `• ${s}`)
-      ].filter(Boolean).join("\n");
+      const actionSentences = buildSentences(changeSummary);
 
-      // Step 3: Create enhanced prompt with few-shot examples
-      const prompt = `
-You are an expert utility pole technician writing brief work notes for make-ready coversheets.
-Here are the changes we made:
+      // Step 2: Construct system and user prompts per new roadmap
+      const systemPrompt = `You are an AI coversheet-note writer.  
+Follow these examples exactly:  
+- "Lower comm to resolve power clearance violation. Install Charter Fiber. Proposed down guy added."  
+- "Install Charter Fiber and riser. Bore underground to Southeast service location. Stub pole removal needed."  
+Write 1–4 short sentences, present tense imperative, one action per sentence.`;
 
-${bullets}
+      const userPrompt = `Pole: ${changeSummary.poleId}\nActions:\n${actionSentences.join('\n')}`;
 
-Examples of good coversheet notes:
-• Pole 1054: Added transformer bracket at 14'; removed old street-light arm.
-→ "Added a new transformer bracket at 14′ and removed the outdated street-light arm on Pole 1054."
+      const finalPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
-• Pole 6396: Trimmed from 45′ to 42′; installed new guy wire.
-→ "Trimmed Pole 6396 from 45′ to 42′ and installed a new guy wire."
-
-• Pole 2847: Loading changed from 89.1% to 68.4%; no physical changes.
-→ "Capacity optimization through design analysis reducing loading from 89.1% to 68.4%."
-
-Now, write a concise, single-paragraph note summarizing the work we did on this pole.
-Keep it under 30 words and use past tense. Focus on the most significant changes.
-      `;
-
-      // Step 4: Call OpenAI with enhanced prompt
       let notes = '';
       try {
-        notes = await aiService.generateAnalysis(prompt, 'coversheet-notes');
+        notes = await aiService.generateAnalysis(finalPrompt, 'coversheet-notes');
       } catch (error) {
         console.warn('AI generation failed, using rule-based fallback:', error);
-        
-        // Enhanced rule-based fallback using change summary
-        if (changeSummary.added.length > 0 || changeSummary.removed.length > 0 || changeSummary.relocated.length > 0) {
-          const actions = [];
-          if (changeSummary.added.length > 0) actions.push(`added ${changeSummary.added.length} attachment${changeSummary.added.length > 1 ? 's' : ''}`);
-          if (changeSummary.removed.length > 0) actions.push(`removed ${changeSummary.removed.length} attachment${changeSummary.removed.length > 1 ? 's' : ''}`);
-          if (changeSummary.relocated.length > 0) actions.push(`relocated ${changeSummary.relocated.length} attachment${changeSummary.relocated.length > 1 ? 's' : ''}`);
-          notes = `Pole modifications: ${actions.join(', ')}.`;
-        } else if (changeSummary.heightChange) {
-          notes = `Pole replacement: ${changeSummary.heightChange}.`;
-        } else if (changeSummary.specificationChange) {
-          notes = `Pole upgrade: ${changeSummary.specificationChange}.`;
-        } else if (changeSummary.loadingChange) {
-          notes = `Capacity optimization: ${changeSummary.loadingChange}.`;
-        } else {
-          notes = 'Design verification completed with no changes required.';
-        }
-        
-                 // Add special conditions if present
-         if (changeSummary.special && changeSummary.special.length > 0) {
-           notes += ` Note: ${changeSummary.special.join('; ')}.`;
-         }
+        // Simple fallback: join action sentences
+        notes = actionSentences.join(' ');
       }
-      
+
       // Step 5: Update with generated notes
       setCoverSheetData(prev => 
         prev.map((row, index) => 
@@ -442,39 +416,27 @@ Keep it under 30 words and use past tense. Focus on the most significant changes
     );
 
     try {
-      // Use same logic as generateNotesForPole but with higher temperature
       const changeSummary: PoleChangeSummary = summarizePoleChanges(pole);
-      
-      const bullets = [
-        `• Pole: ${changeSummary.poleId}`,
-        ...changeSummary.added.map(a => `• Added: ${a}`),
-        ...changeSummary.removed.map(r => `• Removed: ${r}`),
-        ...changeSummary.relocated.map(r => `• Relocated: ${r}`),
-        changeSummary.heightChange && `• Height change: ${changeSummary.heightChange}`,
-        changeSummary.loadingChange && `• Loading: ${changeSummary.loadingChange}`,
-        changeSummary.specificationChange && `• Specification: ${changeSummary.specificationChange}`,
-        ...(changeSummary.special || []).map(s => `• ${s}`)
-      ].filter(Boolean).join("\n");
+      const actionSentences = buildSentences(changeSummary);
 
-      const prompt = `
-You are an expert utility pole technician writing brief work notes for make-ready coversheets.
-Here are the changes we made:
+      const systemPrompt = `You are an AI coversheet-note writer.  
+Follow these examples exactly:  
+- "Lower comm to resolve power clearance violation. Install Charter Fiber. Proposed down guy added."  
+- "Install Charter Fiber and riser. Bore underground to Southeast service location. Stub pole removal needed."  
+Write 1–4 short sentences, present tense imperative, one action per sentence.`;
 
-${bullets}
+      const userPrompt = `Pole: ${changeSummary.poleId}\nActions:\n${actionSentences.join('\n')}`;
 
-Write a concise, single-paragraph note summarizing the work we did on this pole.
-Keep it under 30 words and use past tense. Focus on the most significant changes.
-Provide a fresh variation that's different from previous attempts.
-      `;
+      const finalPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
       let notes = '';
       try {
-        notes = await aiService.generateAnalysis(prompt, 'coversheet-notes-regen');
+        notes = await aiService.generateAnalysis(finalPrompt, 'coversheet-notes-regen');
       } catch (error) {
         console.warn('AI regeneration failed, using fallback:', error);
-        notes = 'Design verification and structural analysis completed.';
+        notes = actionSentences.join(' ');
       }
-      
+
       setCoverSheetData(prev => 
         prev.map((row, index) => 
           index === poleIndex 
