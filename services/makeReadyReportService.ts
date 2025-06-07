@@ -15,7 +15,7 @@ import ExcelJS from 'exceljs';
  */
 export async function generateMakeReadyReport(
   jobJson: any,
-  geoJson: any | null = null
+  _geoJson: any | null = null
 ): Promise<Blob> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Make-Ready');
@@ -67,6 +67,7 @@ export async function generateMakeReadyReport(
       currentRow += 1;
     });
 
+
     const groupEnd = currentRow - 1;
 
     // Merge connection-level columns across group (A-E and I)
@@ -108,24 +109,6 @@ function formatHeightFeetInches(heightInches: number | null | undefined): string
   return `${feet}'-${inches}"`;
 }
 
-/** Calculate bearing between two WGS-84 coords. Returns tuple [deg, "N|NE|E|…"] */
-function calculateBearing(lat1: number, lon1: number, lat2: number, lon2: number): [number, string] {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const phi1 = toRad(lat1);
-  const phi2 = toRad(lat2);
-  const dLon = toRad(lon2 - lon1);
-  const y = Math.sin(dLon) * Math.cos(phi2);
-  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLon);
-  let brng = (Math.atan2(y, x) * 180) / Math.PI; // in deg
-  brng = (brng + 360) % 360; // 0-360
-  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  const idx = Math.round(brng / 45) % 8;
-  return [brng, dirs[idx]];
-}
-
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && !isNaN(value);
-}
 
 /****************************
  * Domain helpers (partial port)
@@ -292,99 +275,3 @@ function buildMovementSummary(attachers: Attacher[], cpsOnly = false): string {
   });
   return lines.join('\n');
 }
-
-/** Shorthand CPS-only movement summary */
-function buildShortCpsMovement(attachers: Attacher[]): string {
-  const lines: string[] = [];
-  attachers.forEach((att) => {
-    if (!att.name.toLowerCase().startsWith('cps energy')) return;
-    if (!att.existingHeight || !att.proposedHeight) return;
-    const existingIn = parseFeetInches(att.existingHeight);
-    const proposedIn = parseFeetInches(att.proposedHeight);
-    if (existingIn === null || proposedIn === null || existingIn === proposedIn) return;
-    const delta = proposedIn - existingIn;
-    const action = delta > 0 ? 'Raise' : 'Lower';
-    lines.push(`${action} ${att.name.replace(/cps energy/i, '').trim()}`);
-  });
-  return lines.join('\n');
-}
-
-/****************************
- * Reference span helpers
- ****************************/
-
-interface ReferenceSpan {
-  bearing: string;
-  attachers: Attacher[];
-}
-
-function getReferenceSpans(jobData: any, currentNodeId: string): ReferenceSpan[] {
-  const results: ReferenceSpan[] = [];
-  const traceData = jobData.traces?.trace_data || {};
-
-  for (const [connId, conn] of Object.entries<any>(jobData.connections || {})) {
-    // Identify reference connection by attribute value containing "reference"
-    const connTypeAttr = conn.attributes?.connection_type;
-    const connTypeVal = typeof connTypeAttr === 'string' ? connTypeAttr : connTypeAttr?.button_added || Object.values(connTypeAttr || {})[0];
-    if (!connTypeVal || !String(connTypeVal).toLowerCase().includes('reference')) continue;
-
-    // Check if this connection attaches to current node
-    const nodeIds = [conn.node_id_1, conn.node_id_2];
-    if (!nodeIds.includes(currentNodeId)) continue;
-
-    // Calculate bearing using midpoint section similar to python logic
-    let bearingStr = '';
-    const sections = conn.sections || {};
-    const keys = Object.keys(sections);
-    const midSection: any = keys.length ? (sections as any)[keys[Math.floor(keys.length / 2)]] : undefined;
-    if (midSection) {
-      const lat = midSection.latitude;
-      const lon = midSection.longitude;
-      const fromNode = jobData.nodes?.[currentNodeId];
-      const mainPhotoId = Object.keys(fromNode?.photos || {}).find((pid) => fromNode.photos[pid]?.association === 'main');
-      const fromPhoto = jobData.photos?.[mainPhotoId];
-      const fromLat = fromPhoto?.latitude;
-      const fromLon = fromPhoto?.longitude;
-      if (isNumber(lat) && isNumber(lon) && isNumber(fromLat) && isNumber(fromLon)) {
-        const [deg, card] = calculateBearing(fromLat, fromLon, lat, lon);
-        bearingStr = `${card} (${Math.round(deg)}°)`;
-      }
-    }
-
-    // Use midpoint main photo to collect attachers
-    const photos = midSection?.photos || {};
-    const midMainPhotoId = Object.keys(photos).find((pid) => photos[pid]?.association === 'main');
-    if (!midMainPhotoId) continue;
-    const pf = jobData.photos?.[midMainPhotoId]?.photofirst_data || {};
-
-    const attacherList: Attacher[] = [];
-    const categories: Array<keyof typeof pf> = ['wire', 'guying'];
-
-    for (const cat of categories) {
-      const items = pf[cat] || {};
-      for (const item of Object.values<any>(items)) {
-        const traceId = item._trace;
-        if (!traceId || !traceData[traceId]) continue;
-        const info = traceData[traceId];
-        const company = (info.company || '').trim();
-        const cableType = (info.cable_type || '').trim();
-        if (cableType.toLowerCase() === 'primary') continue;
-        const h = parseFloat(item._measured_height);
-        if (!isFinite(h)) continue;
-        const name = `${company} ${cableType}`.trim();
-        attacherList.push({
-          name,
-          existingHeight: formatHeightFeetInches(h),
-          proposedHeight: '',
-          rawHeight: h,
-        });
-      }
-    }
-    attacherList.sort((a, b) => b.rawHeight - a.rawHeight);
-    if (attacherList.length) {
-      results.push({ bearing: bearingStr, attachers: attacherList });
-    }
-  }
-
-  return results;
-} 

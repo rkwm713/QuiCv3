@@ -152,7 +152,7 @@ const shouldFlagForReview = (pole: ProcessedPole, columnKey: string): boolean =>
   return false;
 };
 
-export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetails, onExportKatapultAttributes }) => {
+export const DataTable: React.FC<DataTableProps> = ({ data, onEdit: _onEdit, onViewDetails, onExportKatapultAttributes }) => {
   const [filterType, setFilterType] = useState<'all' | 'errors' | 'warnings' | 'edited'>('all');
 
   const stats = useMemo(() => {
@@ -206,9 +206,6 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
     );
   }
 
-  const handleInputChange = (poleId: string, field: keyof ProcessedPole, value: string) => {
-    onEdit(poleId, field, value);
-  };
 
   return (
     <div className="card h-full flex flex-col p-0">
@@ -271,12 +268,6 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onEdit, onViewDetail
           </thead>
           <tbody>
             {filteredData.map((pole) => {
-              const hasError = hasErrors(pole);
-              const hasWarning = shouldFlagForReview(pole, 'editableSpidaExistingPct') ||
-                               shouldFlagForReview(pole, 'displayKatapultExistingPct') ||
-                               shouldFlagForReview(pole, 'editableSpidaFinalPct') ||
-                               shouldFlagForReview(pole, 'displayKatapultFinalPct');
-
               return (
                 <tr 
                   key={pole.id} 
