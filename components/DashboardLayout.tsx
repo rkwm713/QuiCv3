@@ -690,7 +690,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 ${activeTab === 'coversheet' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}
               `}>
                 <div className="h-full bg-slate-900/50 rounded-xl border border-slate-700/30 overflow-hidden">
-                  <CoverSheetTable data={poleData || []} rawSpidaData={rawSpidaData} />
+                  <CoverSheetTable data={poleData || []} />
                 </div>
               </div>
 
