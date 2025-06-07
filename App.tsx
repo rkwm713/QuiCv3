@@ -1,12 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { DashboardLayout } from './components/DashboardLayout';
 import { FileLoader } from './components/FileLoader';
 import { DataTable } from './components/DataTable';
 import { MapWithSelector } from './components/MapWithSelector';
 import { StatusDisplay } from './components/StatusDisplay';
 import { PoleDetailModal } from './components/PoleDetailModal';
-import { IconButton } from './components/IconButton';
-import LandingPage from './components/LandingPage';
 import { 
   IntermediateSpidaPole,
   ProcessedPole, 
@@ -18,7 +15,7 @@ import {
   Coordinate,
   SpidaLocation,
   SpidaDesign,
-  SpidaJsonFullFormat, // Updated type
+  SpidaJsonFullFormat,
   SpidaProjectStructure,
   SpidaDesignPoleStructure,
   MatchTier
@@ -38,55 +35,78 @@ import {
 import { generateSpidaJsonWithUpdates, exportToCsv, exportKatapultAttributeUpdateExcel } from './services/exportService';
 import { INITIAL_STATS, ALLOWED_KATAPULT_NODE_TYPES }  from './constants';
 
+// Icon components
 const UploadIcon: React.FC = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
   </svg>
 );
+
 const CompareIcon: React.FC = () => (
- <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
-</svg>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
+  </svg>
 );
+
 const ExportIcon: React.FC = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
   </svg>
 );
-const SaveIcon: React.FC = () => (
- <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-</svg>
-);
 
-const ResetIcon: React.FC = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+const CheckIcon: React.FC = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
   </svg>
 );
 
-// Helper function to extract the pole number string for normalization
-function getPoleNumDisplayString(
-  id: string | number | undefined | null,
-  externalId: string | number | undefined | null,
-  label: string | undefined | null
-): string | null {
-  if (id !== null && id !== undefined && String(id).trim() !== '') return String(id).trim();
-  if (externalId !== null && externalId !== undefined && String(externalId).trim() !== '') return String(externalId).trim();
-  if (label !== null && label !== undefined && String(label).trim() !== '') {
-    const L = String(label).trim();
-    // Try to remove a "number-" prefix from the label.
-    // E.g., "1-PL28462" -> "PL28462"; "001-POLE123" -> "POLE123"
-    const prefixMatch = L.match(/^\d+-(.*)/i);
-    if (prefixMatch && prefixMatch[1]) {
-      return prefixMatch[1]; // Return the part after "n-"
-    }
-    return L; // Otherwise, use the label as is, normalizePoleNum will attempt to clean it
-  }
-  return null;
-}
+const App: React.FC = () => {
+  // Remove landing page state
+  const [rawSpidaJson, setRawSpidaJson] = useState<SpidaJsonFullFormat | null>(null);
+  const [_spidaAliasTable, setSpidaAliasTable] = useState<Record<string, string>>({});
+  const [normalizedSpidaData, setNormalizedSpidaData] = useState<NormalizedPole[] | null>(null);
+  const [spidaFileName, setSpidaFileName] = useState<string | null>(null);
+  
+  const [_rawKatapultJsonFull, setRawKatapultJsonFull] = useState<KatapultJsonFormat | null>(null);
+  const [_katapultBirthmarks, setKatapultBirthmarks] = useState<Record<string, KatapultBirthmarkData>>({});
+  const [normalizedKatapultData, setNormalizedKatapultData] = useState<NormalizedPole[] | null>(null);
+  const [katapultFileName, setKatapultFileName] = useState<string | null>(null);
 
-function getCoordsFromSpidaSource(source: SpidaProjectStructure | SpidaLocation): Coordinate | null {
+  const [processedPoles, setProcessedPoles] = useState<ProcessedPole[]>([]);
+  const [comparisonStats, setComparisonStats] = useState<ComparisonStats>(INITIAL_STATS);
+  
+  const [isLoadingSpida, setIsLoadingSpida] = useState(false);
+  const [isLoadingKatapult, setIsLoadingKatapult] = useState(false);
+  const [isComparing, setIsComparing] = useState(false);
+  
+  const [statusMessage, setStatusMessage] = useState<string>('Load SPIDA and Katapult JSON files to begin.');
+  const [selectedPoleForModal, setSelectedPoleForModal] = useState<ProcessedPole | null>(null);
+  const [resetKey, setResetKey] = useState<number>(0);
+  
+  const [showVisualization, setShowVisualization] = useState<'table' | 'map'>('table');
+
+  // Helper function to extract the pole number string for normalization
+  function getPoleNumDisplayString(
+    id: string | number | undefined | null,
+    externalId: string | number | undefined | null,
+    label: string | undefined | null
+  ): string | null {
+    if (id !== null && id !== undefined && String(id).trim() !== '') return String(id).trim();
+    if (externalId !== null && externalId !== undefined && String(externalId).trim() !== '') return String(externalId).trim();
+    if (label !== null && label !== undefined && String(label).trim() !== '') {
+      const L = String(label).trim();
+      // Try to remove a "number-" prefix from the label.
+      // E.g., "1-PL28462" -> "PL28462"; "001-POLE123" -> "POLE123"
+      const prefixMatch = L.match(/^\d+-(.*)/i);
+      if (prefixMatch && prefixMatch[1]) {
+        return prefixMatch[1]; // Return the part after "n-"
+      }
+      return L; // Otherwise, use the label as is, normalizePoleNum will attempt to clean it
+    }
+    return null;
+  }
+
+  function getCoordsFromSpidaSource(source: SpidaProjectStructure | SpidaLocation): Coordinate | null {
     const geoCoord = source.geographicCoordinate?.coordinates;
     if (geoCoord && geoCoord.length === 2) return { lon: geoCoord[0], lat: geoCoord[1] };
 
@@ -119,70 +139,42 @@ function getCoordsFromSpidaSource(source: SpidaProjectStructure | SpidaLocation)
     if (measDesignPole?.mapLocation?.coordinates) return { lon: measDesignPole.mapLocation.coordinates[0], lat: measDesignPole.mapLocation.coordinates[1]};
 
     return null;
-}
-
-function collectKatapultBirthmarks(jsonData: KatapultJsonFormat): Record<string, KatapultBirthmarkData> {
-  const birthmarks: Record<string, KatapultBirthmarkData> = {};
-  if (!jsonData.nodes) return birthmarks;
-
-  for (const nodeId in jsonData.nodes) {
-    const node: KatapultJsonNode = jsonData.nodes[nodeId];
-    const birthmarkBrandContainer = node.attributes?.birthmark_brand;
-    
-    if (birthmarkBrandContainer && typeof birthmarkBrandContainer === 'object' && !Array.isArray(birthmarkBrandContainer)) {
-        // The actual birthmark data is nested one level deeper under a dynamic key
-        const birthmarkAttr = getFirstValueFromKatapultAttribute(birthmarkBrandContainer) as any; 
-        
-        if (birthmarkAttr && typeof birthmarkAttr === 'object') {
-            const heightFt = _to_feet_ts(birthmarkAttr.pole_height || birthmarkAttr.height || null);
-            const rawPoleClass = birthmarkAttr.pole_class || birthmarkAttr.class || null;
-            const poleClass = commonNormalizePoleNum(rawPoleClass); 
-            
-            const rawSpecies = birthmarkAttr["pole_species*"] || birthmarkAttr.pole_species || birthmarkAttr.species || null; // Handle "pole_species*"
-            const species = typeof rawSpecies === 'string' ? rawSpecies.replace('*', '').trim() : null; // Clean asterisk if present
-            
-            const refIdFromAttr = getFirstValueFromKatapultAttribute(node.attributes?.birthmark_reference_id);
-            const refId = refIdFromAttr ? String(refIdFromAttr) : (node.StructureRID ? String(node.StructureRID) : nodeId);
-
-            birthmarks[refId] = {
-                heightFt: heightFt,
-                poleClass: typeof poleClass === 'string' ? poleClass : null,
-                species: species,
-                originalDataSource: birthmarkAttr
-            };
-        }
-    }
   }
-  return birthmarks;
-}
 
+  function collectKatapultBirthmarks(jsonData: KatapultJsonFormat): Record<string, KatapultBirthmarkData> {
+    const birthmarks: Record<string, KatapultBirthmarkData> = {};
+    if (!jsonData.nodes) return birthmarks;
 
-const App: React.FC = () => {
-  // Landing page state - show landing page by default
-  const [showLandingPage, setShowLandingPage] = useState(true);
+    for (const nodeId in jsonData.nodes) {
+      const node: KatapultJsonNode = jsonData.nodes[nodeId];
+      const birthmarkBrandContainer = node.attributes?.birthmark_brand;
+      
+      if (birthmarkBrandContainer && typeof birthmarkBrandContainer === 'object' && !Array.isArray(birthmarkBrandContainer)) {
+          // The actual birthmark data is nested one level deeper under a dynamic key
+          const birthmarkAttr = getFirstValueFromKatapultAttribute(birthmarkBrandContainer) as any; 
+          
+          if (birthmarkAttr && typeof birthmarkAttr === 'object') {
+              const heightFt = _to_feet_ts(birthmarkAttr.pole_height || birthmarkAttr.height || null);
+              const rawPoleClass = birthmarkAttr.pole_class || birthmarkAttr.class || null;
+              const poleClass = commonNormalizePoleNum(rawPoleClass); 
+              
+              const rawSpecies = birthmarkAttr["pole_species*"] || birthmarkAttr.pole_species || birthmarkAttr.species || null; // Handle "pole_species*"
+              const species = typeof rawSpecies === 'string' ? rawSpecies.replace('*', '').trim() : null; // Clean asterisk if present
+              
+              const refIdFromAttr = getFirstValueFromKatapultAttribute(node.attributes?.birthmark_reference_id);
+              const refId = refIdFromAttr ? String(refIdFromAttr) : (node.StructureRID ? String(node.StructureRID) : nodeId);
 
-  const [rawSpidaJson, setRawSpidaJson] = useState<SpidaJsonFullFormat | null>(null);
-  const [_spidaAliasTable, setSpidaAliasTable] = useState<Record<string, string>>({});
-  const [normalizedSpidaData, setNormalizedSpidaData] = useState<NormalizedPole[] | null>(null);
-  const [spidaFileName, setSpidaFileName] = useState<string | null>(null);
-  
-  const [_rawKatapultJsonFull, setRawKatapultJsonFull] = useState<KatapultJsonFormat | null>(null);
-  const [_katapultBirthmarks, setKatapultBirthmarks] = useState<Record<string, KatapultBirthmarkData>>({});
-  const [normalizedKatapultData, setNormalizedKatapultData] = useState<NormalizedPole[] | null>(null);
-  const [katapultFileName, setKatapultFileName] = useState<string | null>(null);
-
-  const [processedPoles, setProcessedPoles] = useState<ProcessedPole[]>([]);
-  const [comparisonStats, setComparisonStats] = useState<ComparisonStats>(INITIAL_STATS);
-  
-  const [isLoadingSpida, setIsLoadingSpida] = useState(false);
-  const [isLoadingKatapult, setIsLoadingKatapult] = useState(false);
-  const [isComparing, setIsComparing] = useState(false);
-  
-  const [statusMessage, setStatusMessage] = useState<string>('Load SPIDA and Katapult JSON files to begin.');
-  const [selectedPoleForModal, setSelectedPoleForModal] = useState<ProcessedPole | null>(null);
-  const [resetKey, setResetKey] = useState<number>(0);
-  
-
+              birthmarks[refId] = {
+                  heightFt: heightFt,
+                  poleClass: typeof poleClass === 'string' ? poleClass : null,
+                  species: species,
+                  originalDataSource: birthmarkAttr
+              };
+          }
+      }
+    }
+    return birthmarks;
+  }
 
   const handleSpidaFileLoad = useCallback((fileName: string, content: string) => {
     setIsLoadingSpida(true);
@@ -499,23 +491,22 @@ const App: React.FC = () => {
     setStatusMessage('SPIDA JSON with updates exported.');
   }, [rawSpidaJson, processedPoles, spidaFileName]);
 
-  const handleExportKatapultAttributeUpdate = useCallback(() => {
+  const handleExportKatapultExcel = useCallback(() => {
     if (processedPoles.length === 0) {
-      setStatusMessage('No processed data to generate Katapult attribute update file.');
+      setStatusMessage('No data to export to Excel.');
       return;
     }
+
     exportKatapultAttributeUpdateExcel(processedPoles, spidaFileName);
     setStatusMessage('Katapult attribute update Excel file generated.');
   }, [processedPoles, spidaFileName]);
 
-
-  
-  const handleViewDetails = useCallback((pole: ProcessedPole) => {
-    setSelectedPoleForModal(pole);
-  }, []);
-
   const handleCloseModal = useCallback(() => {
     setSelectedPoleForModal(null);
+  }, []);
+
+  const handleViewDetails = useCallback((pole: ProcessedPole) => {
+    setSelectedPoleForModal(pole);
   }, []);
   
   useEffect(() => {
@@ -527,148 +518,222 @@ const App: React.FC = () => {
     }
   }, [normalizedSpidaData, normalizedKatapultData, spidaFileName, katapultFileName]);
 
-  const handleEnterApp = useCallback(() => {
-    setShowLandingPage(false);
-  }, []);
-
-  const dataSourceSection = (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <FileLoader 
-        key={`spida-${resetKey}`}
-        label="SPIDA" 
-        onFileLoad={handleSpidaFileLoad} 
-        isLoading={isLoadingSpida} 
-        loadedFileName={spidaFileName}
-        idPrefix="spida"
-        icon={<UploadIcon />}
-      />
-      <FileLoader 
-        key={`katapult-${resetKey}`}
-        label="Katapult" 
-        onFileLoad={handleKatapultFileLoad} 
-        isLoading={isLoadingKatapult}
-        loadedFileName={katapultFileName}
-        idPrefix="katapult"
-        icon={<UploadIcon />}
-      />
-    </div>
-  );
-
-  const analysisSection = (
-    <IconButton 
-      onClick={handleCompare} 
-      disabled={isLoadingSpida || isLoadingKatapult || isComparing || !normalizedSpidaData || !normalizedKatapultData}
-      className="w-full justify-center"
-      icon={<CompareIcon />}
-    >
-      {isComparing ? 'Comparing...' : 'Run Comparison'}
-    </IconButton>
-  );
-
-  const exportSection = (
-     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-      <IconButton 
-        onClick={handleExportCsv} 
-        disabled={processedPoles.length === 0 || isComparing}
-        className="w-full justify-center text-sm"
-        icon={<ExportIcon />}
-      >
-        Export CSV
-      </IconButton>
-      <IconButton 
-        onClick={handleExportSpidaJson} 
-        disabled={!rawSpidaJson || isComparing || processedPoles.length === 0}
-        className="w-full justify-center text-sm"
-        icon={<SaveIcon />}
-      >
-        Save SPIDA JSON
-      </IconButton>
-       <IconButton 
-        onClick={handleExportKatapultAttributeUpdate} 
-        disabled={processedPoles.length === 0 || isComparing}
-        className="w-full justify-center text-sm sm:col-span-2 lg:col-span-1 xl:col-span-2"
-        icon={<ExportIcon />}
-      >
-        Export Katapult Attributes (XLSX)
-      </IconButton>
-      <IconButton 
-        onClick={handleReset} 
-        disabled={isLoadingSpida || isLoadingKatapult || isComparing}
-        className="w-full justify-center text-sm sm:col-span-2 lg:col-span-1 xl:col-span-2 bg-red-600/20 hover:bg-red-600/30 border-red-500/50 text-red-300"
-        icon={<ResetIcon />}
-      >
-        Reset All Data
-      </IconButton>
-
-    </div>
-  );
-
-  const statusContentSection = (
-    <StatusDisplay stats={comparisonStats} statusMessage={statusMessage} isComparing={isComparing} />
-  );
-
-  const dataTableSection = (
-    <DataTable data={processedPoles} onEdit={handleEditPole} onViewDetails={handleViewDetails} />
-  );
-  
-  const mapSection = (
-    <MapWithSelector processedPoles={processedPoles} onPoleClick={handleViewDetails} />
-  );
-
-  // If landing page should be shown, render it instead of the dashboard
-  if (showLandingPage) {
-    return <LandingPage onEnterApp={handleEnterApp} />;
-  }
-
   return (
-    <>
-      <DashboardLayout
-        dataSourceSection={dataSourceSection}
-        analysisSection={analysisSection}
-        exportSection={exportSection}
-        statusSection={statusContentSection}
-        dataTableSection={dataTableSection}
-        mapSection={mapSection}
-        hasSpidaFile={spidaFileName !== null}
-        hasKatapultFile={katapultFileName !== null}
-        hasComparisonRun={processedPoles.length > 0}
-        hasDataToExport={processedPoles.length > 0}
-        comparisonData={{
-          totalPoles: comparisonStats.totalSpidaPoles + comparisonStats.totalKatapultPoles,
-          matchedPoles: comparisonStats.totalMatches,
-          matchRate: (comparisonStats.totalSpidaPoles + comparisonStats.totalKatapultPoles) > 0 ? Math.round((comparisonStats.totalMatches / (comparisonStats.totalSpidaPoles + comparisonStats.totalKatapultPoles)) * 100) : 0,
-          tier1Matches: comparisonStats.matchesByTier[MatchTier.SCID_EXACT_MATCH] || 0,
-          tier2Matches: comparisonStats.matchesByTier[MatchTier.POLE_NUMBER_MATCH] || 0,
-          tier3Matches: (comparisonStats.matchesByTier[MatchTier.COORDINATE_DIRECT_MATCH] || 0) + (comparisonStats.matchesByTier[MatchTier.COORDINATE_SPEC_VERIFIED] || 0),
-          tier4Matches: 0, // Add fuzzy matching tier if needed
-          unmatchedPoles: (comparisonStats.matchesByTier[MatchTier.UNMATCHED_SPIDA] || 0) + (comparisonStats.matchesByTier[MatchTier.UNMATCHED_KATAPULT] || 0),
-          sampleMismatches: processedPoles
-            .filter(pole => pole.isSpecMismatch || pole.isExistingPctMismatch || pole.isFinalPctMismatch || pole.isCommDropMismatch)
-            .slice(0, 10)
-            .map(pole => ({
-              id: pole.id,
-              scid: pole.displaySpidaScid || pole.displayKatapultScid,
-              poleNumber: pole.displaySpidaPoleNum || pole.displayKatapultPoleNum,
-              specMismatch: pole.isSpecMismatch,
-              capacityMismatch: pole.isExistingPctMismatch || pole.isFinalPctMismatch,
-              commDropMismatch: pole.isCommDropMismatch,
-              spidaSpec: pole.displaySpidaPoleSpec,
-              katapultSpec: pole.displayKatapultPoleSpec,
-              spidaExistingPct: pole.displaySpidaExistingPct,
-              katapultExistingPct: pole.displayKatapultExistingPct,
-              spidaFinalPct: pole.displaySpidaFinalPct,
-              katapultFinalPct: pole.displayKatapultFinalPct
-            })),
-          mismatches: {
-            specificationMismatches: processedPoles.filter(pole => pole.isSpecMismatch),
-            capacityMismatches: processedPoles.filter(pole => pole.isExistingPctMismatch || pole.isFinalPctMismatch),
-            commDropMismatches: processedPoles.filter(pole => pole.isCommDropMismatch)
-          }
-        }}
-        poleData={processedPoles}
-      />
-      <PoleDetailModal pole={selectedPoleForModal} onClose={handleCloseModal} />
-    </>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-2xl font-semibold text-gray-900">QuiC</h1>
+            <p className="text-sm text-gray-500">Quality Control for SPIDA & Katapult Data</p>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Workflow Progress */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-8">
+              <div className={`flex items-center space-x-2 ${normalizedSpidaData && normalizedKatapultData ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${normalizedSpidaData && normalizedKatapultData ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  {normalizedSpidaData && normalizedKatapultData ? <CheckIcon /> : '1'}
+                </div>
+                <span className="text-sm font-medium">Upload Files</span>
+              </div>
+              
+              <div className={`h-px w-16 ${normalizedSpidaData && normalizedKatapultData ? 'bg-green-300' : 'bg-gray-300'}`} />
+              
+              <div className={`flex items-center space-x-2 ${processedPoles.length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${processedPoles.length > 0 ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  {processedPoles.length > 0 ? <CheckIcon /> : '2'}
+                </div>
+                <span className="text-sm font-medium">Compare Data</span>
+              </div>
+              
+              <div className={`h-px w-16 ${processedPoles.length > 0 ? 'bg-green-300' : 'bg-gray-300'}`} />
+              
+              <div className={`flex items-center space-x-2 ${processedPoles.filter(p => p.isEdited).length > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${processedPoles.filter(p => p.isEdited).length > 0 ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  3
+                </div>
+                <span className="text-sm font-medium">Export Results</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* File Upload Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">SPIDA File</h3>
+              <FileLoader
+                key={`spida-${resetKey}`}
+                onFileLoad={handleSpidaFileLoad}
+                isLoading={isLoadingSpida}
+                acceptedExtensions={['.json']}
+                label="Upload SPIDA JSON"
+                loadedFileName={spidaFileName}
+              />
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Katapult File</h3>
+              <FileLoader
+                key={`katapult-${resetKey}`}
+                onFileLoad={handleKatapultFileLoad}
+                isLoading={isLoadingKatapult}
+                acceptedExtensions={['.json']}
+                label="Upload Katapult JSON"
+                loadedFileName={katapultFileName}
+              />
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="mt-6 flex items-center justify-center space-x-4">
+            <button
+              onClick={handleCompare}
+              disabled={!normalizedSpidaData || !normalizedKatapultData || isComparing}
+              className={`
+                px-6 py-2 rounded-lg font-medium flex items-center space-x-2
+                ${normalizedSpidaData && normalizedKatapultData && !isComparing
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              <CompareIcon />
+              <span>{isComparing ? 'Comparing...' : 'Compare Data'}</span>
+            </button>
+            
+            {(spidaFileName || katapultFileName) && (
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 text-gray-600 hover:text-gray-900"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Status Message */}
+        <StatusDisplay message={statusMessage} />
+
+        {/* Results Section */}
+        {processedPoles.length > 0 && (
+          <>
+            {/* Stats Summary */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-gray-900">{comparisonStats.totalPoles}</div>
+                  <div className="text-sm text-gray-500">Total Poles</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-green-600">{comparisonStats.totalMatches}</div>
+                  <div className="text-sm text-gray-500">Matches</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-yellow-600">{comparisonStats.mismatches.height}</div>
+                  <div className="text-sm text-gray-500">Height Mismatches</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-yellow-600">{comparisonStats.mismatches.class}</div>
+                  <div className="text-sm text-gray-500">Class Mismatches</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-yellow-600">{comparisonStats.mismatches.species}</div>
+                  <div className="text-sm text-gray-500">Species Mismatches</div>
+                </div>
+              </div>
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Comparison Results</h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setShowVisualization('table')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                    showVisualization === 'table'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Table View
+                </button>
+                <button
+                  onClick={() => setShowVisualization('map')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                    showVisualization === 'map'
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Map View
+                </button>
+              </div>
+            </div>
+
+            {/* Data Visualization */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              {showVisualization === 'table' ? (
+                <DataTable
+                  poles={processedPoles}
+                  onEditPole={handleEditPole}
+                  onSelectPole={setSelectedPoleForModal}
+                />
+              ) : (
+                <div className="h-[600px]">
+                  <MapWithSelector
+                    poles={processedPoles}
+                    onPoleSelect={setSelectedPoleForModal}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Export Options */}
+            <div className="mt-6 flex justify-center space-x-4">
+              <button
+                onClick={handleExportCsv}
+                className="px-6 py-2 bg-gray-900 text-white rounded-lg font-medium flex items-center space-x-2 hover:bg-gray-800"
+              >
+                <ExportIcon />
+                <span>Export CSV</span>
+              </button>
+              <button
+                onClick={handleExportSpidaJson}
+                className="px-6 py-2 bg-gray-900 text-white rounded-lg font-medium flex items-center space-x-2 hover:bg-gray-800"
+              >
+                <ExportIcon />
+                <span>Export SPIDA JSON</span>
+              </button>
+              <button
+                onClick={handleExportKatapultExcel}
+                className="px-6 py-2 bg-gray-900 text-white rounded-lg font-medium flex items-center space-x-2 hover:bg-gray-800"
+              >
+                <ExportIcon />
+                <span>Export Katapult Updates</span>
+              </button>
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* Pole Detail Modal */}
+      {selectedPoleForModal && (
+        <PoleDetailModal
+          pole={selectedPoleForModal}
+          onClose={handleCloseModal}
+          onEdit={handleEditPole}
+        />
+      )}
+    </div>
   );
 };
 
