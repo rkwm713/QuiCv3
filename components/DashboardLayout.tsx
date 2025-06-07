@@ -20,8 +20,6 @@ interface DashboardLayoutProps {
   // Data props for AI Analytics
   comparisonData?: any;
   poleData?: any[];
-  // Raw SPIDA data for CoverSheet
-  rawSpidaData?: any;
 }
 
 interface Bolt {
@@ -233,7 +231,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   hasDataToExport,
   comparisonData,
   poleData,
-  rawSpidaData,
 }) => {
   const [activeTab, setActiveTab] = useState<'demo' | 'table' | 'coversheet' | 'map' | 'analytics' | 'statistics' | 'qc'>('demo');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
