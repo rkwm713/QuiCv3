@@ -1,10 +1,10 @@
 // /components/SpidaQcTool/SpidaQcTool.tsx
 
 import React, { useState, useEffect } from 'react';
-import { SpidaCalcData, PoleLocationData, Attachment, KatapultData, ComparisonResult, KatapultNode, EnhancedComparison, MatchResult } from './types';
+import { SpidaCalcData, PoleLocationData, Attachment, KatapultData, ComparisonResult, KatapultNode, EnhancedComparison, MatchResult, AttachmentPoint, AttachmentPointComparison } from './types';
 import PoleLocation from './PoleLocation';
 import ComparisonPole from './ComparisonPole';
-import { buildArmMaps, isInsulatorOnArm, isWireOnArm, getInsulatorArmId, getWireArmId, getArmGroundHeight, verifyCrossArmLogic, type ArmMaps } from './armHelpers';
+import { buildSpidaAttachmentPoints, buildKatapultAttachmentPoints, compareAttachmentPoints } from './attachmentPointHelpers';
 
 // Conversion factor from inches (Katapult heights) to metres
 const INCHES_TO_METRES = 0.0254;
@@ -507,17 +507,6 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
             ...recAttachment, // This preserves the cross-arm indicators and all other original data
             id: recAttachment.id || `spida-rec-${enhancedProposedComparison.length}`,
             poleScid: spidaPole.label,
-            // PRESERVE the original parentInsulatorId - don't override with height-based matching
-            // The SPIDA extraction already set this correctly based on actual wire-to-insulator connections
-            parentInsulatorId: recAttachment.parentInsulatorId || (
-              // Only use height-based fallback if there's no explicit relationship AND it's not an insulator itself
-              recAttachment.type.toLowerCase().includes('insulator') ? undefined :
-              spidaRecommended.find(ins => 
-                ins.type.toLowerCase().includes('insulator') && 
-                ins.id !== recAttachment.id && // Don't link to self
-                Math.abs(ins.height - recAttachment.height) < 0.01
-              )?.id
-            )
           };
 
           // Debug logging to verify cross-arm indicators are preserved
@@ -559,6 +548,76 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           }
         });
 
+        // ═══ NORMALIZED ATTACHMENT POINT COMPARISON ═══
+        let attachmentPointComparisons: AttachmentPointComparison[] = [];
+        
+        try {
+          // Build SPIDA attachment points from measured design
+          const measuredStructure = measuredDesign ? 
+            spidaPole.designs.find(d => d.label === measuredDesign.label) : null;
+          
+          let spidaAttachmentPoints: AttachmentPoint[] = [];
+          if (measuredStructure) {
+            // We need to access the original structure data, which requires parsing again
+            // For now, let's skip the attachment point comparison until we refactor the parsing
+            console.log('📍 SPIDA attachment point building temporarily disabled - needs structure access');
+          }
+          
+          // Build Katapult attachment points
+          const katapultAttachmentPoints = buildKatapultAttachmentPoints(
+            katapultPoleData.existing, 
+            poleTag,
+            [] // No existing insulators from Katapult for now
+          );
+          
+          // Demo: Create mock SPIDA attachment points to show the concept
+          // In a full implementation, these would come from buildSpidaAttachmentPoints()
+          if (spidaMeasured.length > 0) {
+            const mockSpidaPoints: AttachmentPoint[] = spidaMeasured
+              .filter(att => att.type.toLowerCase().includes('insulator'))
+              .map(att => ({
+                id: att.id || `spida-${att.type}`,
+                source: 'spida' as const,
+                owner: att.owner.toLowerCase().replace(/[^a-z]/g, ''),
+                description: att.description,
+                height: att.height,
+                wires: [], // Would be populated from structure data
+                synthetic: false,
+                poleScid: poleTag,
+                originalData: att
+              }));
+            
+            spidaAttachmentPoints = mockSpidaPoints;
+            
+            console.log(`📍 Created ${mockSpidaPoints.length} mock SPIDA attachment points for demo`);
+          }
+          
+          console.log(`📍 Pole ${spidaPole.label} attachment points:`, {
+            spidaPoints: spidaAttachmentPoints.length,
+            katapultPoints: katapultAttachmentPoints.length,
+            katapultSynthetic: katapultAttachmentPoints.filter(p => p.synthetic).length
+          });
+          
+          // Compare attachment points only if we have data from both systems
+          if (spidaAttachmentPoints.length > 0 && katapultAttachmentPoints.length > 0) {
+            attachmentPointComparisons = compareAttachmentPoints(
+              spidaAttachmentPoints, 
+              katapultAttachmentPoints
+            );
+            
+            console.log(`📍 Pole ${spidaPole.label} attachment point matches:`, {
+              total: attachmentPointComparisons.length,
+              exact: attachmentPointComparisons.filter(c => c.matchType === 'exact').length,
+              heightOnly: attachmentPointComparisons.filter(c => c.matchType === 'height-only').length,
+              spidaOnly: attachmentPointComparisons.filter(c => c.matchType === 'spida-only').length,
+              katapultOnly: attachmentPointComparisons.filter(c => c.matchType === 'katapult-only').length
+            });
+          }
+        } catch (error) {
+          console.error(`Error building attachment points for pole ${spidaPole.label}:`, error);
+          addWarning(`Failed to build attachment points for pole ${spidaPole.label}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
         // ═══ PRODUCTION GUY MATCHING ═══
         const guyMatchResults = matchGuysForPole(spidaPole, katapultData);
         const allGuysMatch = guyMatchResults.every(result => result.status === 'matched');
@@ -570,6 +629,34 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           unmatchedSpida: guyMatchResults.filter(r => r.status === 'unmatched_spida').length,
           allMatch: allGuysMatch
         });
+
+        // ═══ HEIGHT VALIDATION ═══
+        // Check for physically impossible heights (higher than pole + reasonable buffer)
+        const poleHeight = measuredDesign?.pole.height.value || 0;
+        const poleHeightFt = poleHeight * 3.28084; // Convert to feet
+        const maxReasonableHeight = poleHeightFt + 5; // 5-foot buffer above pole top
+        
+        const suspiciousAttachments = [
+          ...spidaMeasured,
+          ...spidaRecommended
+        ].filter(att => {
+          const attHeightFt = att.height * 3.28084;
+          return attHeightFt > maxReasonableHeight;
+        });
+        
+        if (suspiciousAttachments.length > 0) {
+          console.warn(`🚨 Pole ${spidaPole.label} has ${suspiciousAttachments.length} attachments higher than pole (${poleHeightFt.toFixed(1)}ft):`, 
+            suspiciousAttachments.map(att => ({
+              type: att.type,
+              description: att.description,
+              heightFt: (att.height * 3.28084).toFixed(1),
+              id: att.id
+            }))
+          );
+          
+          // Add warning for UI
+          addWarning(`Pole ${spidaPole.label}: Found ${suspiciousAttachments.length} attachments higher than the pole height (${poleHeightFt.toFixed(1)}ft). This may indicate a parsing error.`);
+        }
 
         return {
           poleLabel: spidaPole.label,
@@ -583,7 +670,8 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           spidaRecommended: spidaRecommended,
           katapultProposed: katapultPoleData.proposed,
           enhancedProposedComparison: enhancedProposedComparison,
-          guyMatchResults: guyMatchResults // Add guy matching results
+          guyMatchResults: guyMatchResults, // Add guy matching results
+          attachmentPointComparisons: attachmentPointComparisons // Add attachment point comparisons
         };
       });
       setComparisonResults(results);
@@ -651,59 +739,44 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           const { structure } = design;
           const attachments: Attachment[] = [];
           
-          // Build all cross-arm relationship maps once (much cleaner!)
-          const armMaps = buildArmMaps(structure);
-          
-          // Verify cross-arm logic is working correctly (debug only)
-          // verifyCrossArmLogic(structure, armMaps, location.label);
-          
-          // Add cross-arms themselves to attachments array
+          // Add cross-arms as standalone attachments
           if (structure.crossArms) {
             structure.crossArms.forEach((arm: any) => {
-              const heightInMetres = getArmGroundHeight(arm.id, armMaps);
+              const rawHeight = arm.attachmentHeight?.value ?? arm.offset?.value ?? 0;
+              const unit = (arm.attachmentHeight?.unit ?? arm.offset?.unit ?? 'METRE') as Unit;
+              const heightInMetres = toMetres(rawHeight, unit);
               
               // Collect warning if no height data available
               if (heightInMetres === 0) {
                 addWarning(`Cross-arm ${arm.id} on pole ${location.label} has no height data`);
               }
               
+              // Add cross-arms as standalone elements
               attachments.push({
                 id: arm.id,
                 type: 'Cross-arm',
                 owner: structure.pole?.owner?.id ?? 'CPS',
-                description: arm.clientItem?.size ?? 'Cross-arm',
-                height: heightInMetres || 0,
+                description: arm.clientItem?.size ?? arm.clientItem ?? 'Cross-arm',
+                height: heightInMetres,
                 poleScid: location.label
               });
             });
           }
 
-          // Calculate actual ground heights for insulators and their wires
-          const insulatorGroundHeight = new Map<string, number>();
+          // Calculate heights for insulators and wires without parent-child relationships
           const wireToInsulatorHeight = new Map<string, number>();
           
           if (structure.insulators) {
             structure.insulators.forEach((ins: any) => {
-              const armId = getInsulatorArmId(ins.id, armMaps);
-              let groundHeight: number;
+              // Use insulator's direct height without cross-arm calculations
+              const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
+              const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
+              const heightInMetres = toMetres(rawHeight, unit);
               
-              if (armId) {
-                // Cross-arm mounted - include insulator's vertical offset
-                const armHt = getArmGroundHeight(armId, armMaps)!;
-                const extra = toMetres(ins.offset?.value ?? 0, (ins.offset?.unit ?? 'METRE') as Unit);
-                groundHeight = armHt + extra; // use the real vertical drop
-              } else {
-                // Pole-top or other mounting: use insulator's absolute height
-                const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
-                groundHeight = toMetres(rawHeight, (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit);
-              }
-              
-              insulatorGroundHeight.set(ins.id, groundHeight);
-              
-              // Map wires to this insulator's ground height
+              // Map wires to this insulator's height for legacy compatibility
               if (Array.isArray(ins.wires)) {
                 ins.wires.forEach((wireId: string) => {
-                  wireToInsulatorHeight.set(wireId, groundHeight);
+                  wireToInsulatorHeight.set(wireId, heightInMetres);
                 });
               }
             });
@@ -714,11 +787,6 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               // Use insulator ground height if wire is connected to an insulator, otherwise use wire height
               const rawHeight = wireToInsulatorHeight.get(w.id) ?? w.attachmentHeight.value;
               const displayHeight = toMetres(rawHeight, (w.attachmentHeight.unit ?? 'METRE') as Unit);
-              const isConnectedToInsulator = wireToInsulatorHeight.has(w.id);
-              
-              // Use clean helper functions to determine cross-arm relationships
-              const parentId = armMaps.wireToInsulatorId.get(w.id);
-              const isOnCrossArm = isWireOnArm(w.id, armMaps);
               
               // Enhanced communication service detection
               const isCommService = w.usageGroup?.toLowerCase().includes('comm') || 
@@ -729,9 +797,8 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 id: w.id || `wire-${attachments.length}`,
                 type: w.usageGroup, 
                 owner: w.owner.id, 
-                description: `${w.clientItem.size}${isConnectedToInsulator ? ' (at insulator height)' : ''}${isOnCrossArm ? ' 🔧' : ''}`, 
+                description: w.clientItem.size, 
                 height: displayHeight,
-                parentInsulatorId: parentId,
                 poleScid: location.label
               });
             });
@@ -782,19 +849,39 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               }
 
               // Extract insulator name and size from SPIDACalc structure using helper
-              const insulatorName = ins.clientItem || 'Unknown Insulator';
+              const rawInsulatorName = ins.clientItem || 'Unknown Insulator';
               const insulatorSize = getInsulatorDisplayName(ins.id, data);
+              
+              // Safety check: prevent cross-arm descriptions from being used as insulator names
+              const isCrossArmDescription = (name: string): boolean => {
+                const lowerName = name.toLowerCase();
+                return lowerName.includes('clamp') || 
+                       lowerName.includes('tangent') || 
+                       lowerName.includes('bolt') ||
+                       lowerName.includes('crossarm') ||
+                       lowerName.includes('cross-arm') ||
+                       lowerName.includes('hd ') ||
+                       lowerName.includes('tb');
+              };
+              
+              // Use safe insulator name
+              const insulatorName = isCrossArmDescription(rawInsulatorName) ? 
+                'Insulator' : rawInsulatorName;
+                
+              // Also apply safety check to insulator size
+              const safeInsulatorSize = isCrossArmDescription(insulatorSize) ? 
+                'Unknown Insulator' : insulatorSize;
 
-              // Check if this insulator is cross-arm mounted
-              const isOnCrossArm = isInsulatorOnArm(ins.id, armMaps);
-              const rawHeight = insulatorGroundHeight.get(ins.id) ?? (ins.offset?.value ?? ins.attachmentHeight?.value ?? 0);
-              const finalHeight = toMetres(rawHeight, (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit);
+              // Use direct insulator height without cross-arm calculations
+              const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
+              const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
+              const finalHeight = toMetres(rawHeight, unit);
               
               attachments.push({
                 id: ins.id || `insulator-${attachments.length}`,
                 type: `Insulator (${insulatorName})`,
                 owner: ownerId,
-                description: `${insulatorSize !== 'Unknown Insulator' ? insulatorSize : insulatorName}${isOnCrossArm ? ' 🔧' : ''}`,
+                description: `${safeInsulatorSize !== 'Unknown Insulator' ? safeInsulatorSize : insulatorName}`,
                 height: finalHeight,
                 poleScid: location.label
               });
@@ -880,33 +967,6 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               description: traceInfo.label || wire._trace,
               height: wire._measured_height * INCHES_TO_METRES,
             };
-
-            // For wires that are not guys, create a synthetic wire-based attachment
-            // Use "Wire" type instead of "Insulator" to avoid confusion with real insulators
-            const shouldCreateSyntheticWireGroup = 
-              attachmentType !== 'Guy' &&
-              traceInfo._trace_type !== 'down_guy';
-
-            if (shouldCreateSyntheticWireGroup) {
-              const syntheticWireId = `syn-wire-${wire._trace}`;
-              const syntheticWireGroup: Attachment = {
-                id: syntheticWireId,
-                type: `Wire (${attachmentType || 'Unknown'})`, // Changed from "Insulator" to "Wire"
-                owner: traceInfo.company || 'Unknown',
-                description: `Wire group - ${traceInfo.label || wire._trace}`,
-                height: wire._measured_height * INCHES_TO_METRES,
-                synthetic: true,
-              };
-
-              // Link the wire back to its synthetic wire group
-              wireAttachment.parentInsulatorId = syntheticWireId;
-
-              if (traceInfo.proposed === true) {
-                proposedAttachments.push(syntheticWireGroup);
-              } else {
-                existingAttachments.push(syntheticWireGroup);
-              }
-            }
 
             if (traceInfo.proposed === true) {
               proposedAttachments.push(wireAttachment);

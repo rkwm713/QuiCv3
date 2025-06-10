@@ -12,6 +12,28 @@ export interface Attachment {
     poleScid?: string;               // NEW: pole identifier for grouping
   }
   
+  // NEW: Normalized attachment point that both SPIDA and Katapult converge to
+  export interface AttachmentPoint {
+    id: string;                      // Unique identifier
+    source: 'spida' | 'katapult';    // Which system this came from
+    owner: string;                   // Normalized owner
+    description: string;             // Description of the attachment point
+    height: number;                  // Height in meters
+    wires: string[];                 // Array of wire IDs attached at this point
+    synthetic: boolean;              // True if this was inferred from wire grouping
+    poleScid: string;               // Pole identifier
+    originalData?: any;             // Reference to original data for debugging
+  }
+  
+  // Helper interface for wire grouping logic
+  export interface WireGroup {
+    key: string;                    // Composite key for grouping
+    owner: string;
+    height: number;
+    wires: Attachment[];
+    hasInsulator: boolean;          // Whether this group already has an explicit insulator
+  }
+  
   // Interface for a single design layer (Measured or Recommended)
   export interface Design {
     label: string;
@@ -136,6 +158,14 @@ export interface Attachment {
     measuredHeight?: number;
   }
 
+  // NEW: Enhanced comparison using attachment points
+  export interface AttachmentPointComparison {
+    spidaPoint: AttachmentPoint | null;
+    katapultPoint: AttachmentPoint | null;
+    matchType: 'exact' | 'height-only' | 'spida-only' | 'katapult-only';
+    heightDifference?: number;
+  }
+
   // Guy matching types for production spec
   export type MatchResult =
     | { status: "matched", height_in: number, owner: string, katapult_id: string, spida_id: string }
@@ -156,4 +186,7 @@ export interface Attachment {
     katapultProposed: Attachment[];
     enhancedProposedComparison?: EnhancedComparison[];
     guyMatchResults?: MatchResult[]; // Production guy matching results
+    
+    // NEW: Attachment point comparisons
+    attachmentPointComparisons?: AttachmentPointComparison[];
   }

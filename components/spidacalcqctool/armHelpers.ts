@@ -32,6 +32,15 @@ export const buildArmMaps = (structure: any): ArmMaps => {
     const rawHeight = arm.attachmentHeight?.value ?? arm.offset?.value ?? 0;
     const unit = (arm.attachmentHeight?.unit ?? arm.offset?.unit ?? 'METRE') as Unit;
     
+    console.log(`🔧 Cross-arm ${arm.id} height calculation:`, {
+      attachmentHeight: arm.attachmentHeight,
+      offset: arm.offset,
+      rawHeight,
+      unit,
+      heightInMetres: toMetres(rawHeight, unit),
+      heightInFeet: (toMetres(rawHeight, unit) * 3.28084).toFixed(1)
+    });
+    
     armGroundHeight.set(arm.id, toMetres(rawHeight, unit));
     
     // Map each insulator to this arm

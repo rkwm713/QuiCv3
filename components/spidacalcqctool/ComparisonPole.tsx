@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ComparisonResult } from './types';
 import ComparisonTable from './ComparisonTable';
 import EnhancedComparisonTable from './EnhancedComparisonTable';
+import AttachmentPointTable from './AttachmentPointTable';
 import GuyMatchingTable from './GuyMatchingTable';
 import { formatMetersToFeetInches } from '../../utils/measurements';
 
@@ -263,6 +264,47 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
                 )}
               </div>
             </div>
+
+            {/* Normalized Attachment Point Comparison Card */}
+            {result.attachmentPointComparisons && result.attachmentPointComparisons.length > 0 && (
+              <div style={{ 
+                border: '1px solid #10b981', 
+                borderRadius: '8px',
+                backgroundColor: '#2d3748'
+              }}>
+                <div style={{ 
+                  padding: '16px',
+                  backgroundColor: '#10b981',
+                  borderRadius: '8px 8px 0 0',
+                  borderBottom: '1px solid #059669'
+                }}>
+                  <h4 style={{ 
+                    margin: '0', 
+                    color: '#ffffff',
+                    fontSize: '1.1em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    ✨ Normalized Attachment Points (New Comparison Method)
+                    <span style={{ 
+                      fontSize: '0.85em', 
+                      fontWeight: 'normal',
+                      backgroundColor: '#047857',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '10px'
+                    }}>
+                      {result.attachmentPointComparisons.length} point(s)
+                    </span>
+                  </h4>
+                </div>
+                
+                <div style={{ padding: '16px' }}>
+                  <AttachmentPointTable comparisons={result.attachmentPointComparisons} />
+                </div>
+              </div>
+            )}
 
             {/* Production Guy Matching Card */}
             <div style={{ 
