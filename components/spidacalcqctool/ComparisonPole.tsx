@@ -6,6 +6,7 @@ import ComparisonTable from './ComparisonTable';
 import EnhancedComparisonTable from './EnhancedComparisonTable';
 import AttachmentPointTable from './AttachmentPointTable';
 import GuyMatchingTable from './GuyMatchingTable';
+import CrossArmTable from './CrossArmTable';
 import { formatMetersToFeetInches } from '../../utils/measurements';
 
 interface ComparisonPoleProps {
@@ -40,6 +41,16 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
   const guyLabel = guyTotal > 0 ? 
     `${guyMatched}/${guyTotal} guys ${allGuysMatch ? '✅' : '⚠️'}` : 
     'No guys';
+
+  // Cross-arm stats
+  const crossArmMatches = result.crossArmMatches || [];
+  const crossArmExact = crossArmMatches.filter(m => m.matchType === 'exact').length;
+  const crossArmClose = crossArmMatches.filter(m => m.matchType === 'close').length;
+  const crossArmTotal = crossArmMatches.length;
+  const allCrossArmsMatch = crossArmTotal > 0 && (crossArmExact + crossArmClose) === crossArmTotal;
+  const crossArmLabel = crossArmTotal > 0 ? 
+    `${crossArmExact + crossArmClose}/${crossArmTotal} arms ${allCrossArmsMatch ? '✅' : '⚠️'}` : 
+    'No cross-arms';
 
   const toggleExpanded = () => setIsExpanded(!isExpanded);
 
@@ -133,6 +144,10 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
             <span className="text-slate-400">•</span>
             <span className={guyTotal > 0 && allGuysMatch ? "text-green-400" : guyTotal > 0 ? "text-red-400" : "text-slate-400"}>
               {guyLabel}
+            </span>
+            <span className="text-slate-400">•</span>
+            <span className={crossArmTotal > 0 && allCrossArmsMatch ? "text-green-400" : crossArmTotal > 0 ? "text-red-400" : "text-slate-400"}>
+              {crossArmLabel}
             </span>
           </div>
           <span style={{ 
@@ -342,6 +357,45 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
               
               <div style={{ padding: '16px' }}>
                 <GuyMatchingTable matchResults={guyResults} />
+              </div>
+            </div>
+
+            {/* Cross-arm Mapping Card */}
+            <div style={{ 
+              border: '1px solid #dc2626', 
+              borderRadius: '8px',
+              backgroundColor: '#2d3748'
+            }}>
+              <div style={{ 
+                padding: '16px',
+                backgroundColor: '#dc2626',
+                borderRadius: '8px 8px 0 0',
+                borderBottom: '1px solid #b91c1c'
+              }}>
+                <h4 style={{ 
+                  margin: '0', 
+                  color: '#ffffff',
+                  fontSize: '1.1em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🔧 Cross-arm Mapping (SPIDA Hierarchical vs Katapult Height-based)
+                  <span style={{ 
+                    fontSize: '0.85em', 
+                    fontWeight: 'normal',
+                    backgroundColor: '#991b1b',
+                    color: 'white',
+                    padding: '2px 6px',
+                    borderRadius: '10px'
+                  }}>
+                    {crossArmLabel}
+                  </span>
+                </h4>
+              </div>
+              
+              <div style={{ padding: '16px' }}>
+                <CrossArmTable crossArmMatches={crossArmMatches} />
               </div>
             </div>
 

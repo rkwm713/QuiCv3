@@ -1,6 +1,7 @@
 import React from 'react';
 import { EnhancedComparison } from './types';
 import { formatHeightFtIn } from './comparisonHelpers';
+import { sortWithCrossArmHierarchy } from './crossArmSorting';
 
 interface EnhancedComparisonTableProps {
   enhancedComparisons: EnhancedComparison[];
@@ -14,24 +15,31 @@ interface EnhancedGroupedInsulator {
 const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
   enhancedComparisons,
 }) => {
-  // Group enhanced comparisons with insulators as parents and wires as children
+  // Group enhanced comparisons with cross-arm hierarchy awareness
   const groupEnhancedComparisons = () => {
     const insulators: EnhancedGroupedInsulator[] = [];
     const ungroupedComparisons: EnhancedComparison[] = [];
 
-    // Find all insulators first
-    enhancedComparisons
-      .filter(comp => 
-        (comp.spida?.type.toLowerCase().includes('insulator') || 
-         comp.katapult?.type.toLowerCase().includes('insulator'))
-      )
-      .sort((a, b) => {
-        const aHeight = a.spida?.height || a.katapult?.height || 0;
-        const bHeight = b.spida?.height || b.katapult?.height || 0;
-        return bHeight - aHeight; // Sort by height (highest first)
-      })
-      .forEach(insulatorComp => {
-        const insulatorId = insulatorComp.spida?.id || insulatorComp.katapult?.id;
+    // Extract all SPIDA attachments for hierarchy sorting
+    const spidaAttachments = enhancedComparisons
+      .filter(comp => comp.spida)
+      .map(comp => comp.spida!);
+    
+    // Apply cross-arm hierarchy sorting
+    const sortedSpidaAttachments = sortWithCrossArmHierarchy(spidaAttachments);
+
+    // Process comparisons in hierarchy-sorted order
+    sortedSpidaAttachments.forEach(attachment => {
+      // Find the corresponding enhanced comparison
+      const comparison = enhancedComparisons.find(comp => 
+        comp.spida?.id === attachment.id
+      );
+      
+      if (!comparison) return;
+
+      if (attachment.type.toLowerCase().includes('insulator') && !attachment.type.toLowerCase().includes('cross-arm')) {
+        // This is a regular insulator - group it with its wires
+        const insulatorId = comparison.spida?.id || comparison.katapult?.id;
         
         // Find wires connected to this insulator
         const connectedWires = enhancedComparisons
@@ -46,32 +54,88 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
           });
 
         insulators.push({
-          insulator: insulatorComp,
+          insulator: comparison,
           wires: connectedWires
         });
-      });
+      } else if (!attachment.parentInsulatorId) {
+        // This is an ungrouped attachment (cross-arms, guys, equipment, etc.)
+        ungroupedComparisons.push(comparison);
+      }
+      // Skip wires that are connected to insulators (they're handled in insulator grouping above)
+    });
 
-    // Find ungrouped comparisons (not insulators and not connected to insulators)
+    // Add any Katapult-only comparisons that weren't included above
     enhancedComparisons
-      .filter(comp => 
-        !(comp.spida?.type.toLowerCase().includes('insulator') || 
-          comp.katapult?.type.toLowerCase().includes('insulator')) &&
-        !comp.spida?.parentInsulatorId &&
-        !comp.katapult?.parentInsulatorId
-      )
+      .filter(comp => !comp.spida && comp.katapult)
       .sort((a, b) => {
-        const aHeight = a.spida?.height || a.katapult?.height || 0;
-        const bHeight = b.spida?.height || b.katapult?.height || 0;
+        const aHeight = a.katapult?.height || 0;
+        const bHeight = b.katapult?.height || 0;
         return bHeight - aHeight;
       })
       .forEach(comp => {
-        ungroupedComparisons.push(comp);
+        if (comp.katapult?.type.toLowerCase().includes('insulator') && !comp.katapult?.type.toLowerCase().includes('cross-arm')) {
+          // Katapult-only insulator
+          const insulatorId = comp.katapult.id;
+          const connectedWires = enhancedComparisons
+            .filter(c => 
+              c.spida?.parentInsulatorId === insulatorId ||
+              c.katapult?.parentInsulatorId === insulatorId
+            )
+            .sort((a, b) => {
+              const aHeight = a.spida?.height || a.katapult?.height || 0;
+              const bHeight = b.spida?.height || b.katapult?.height || 0;
+              return bHeight - aHeight;
+            });
+          
+          insulators.push({
+            insulator: comp,
+            wires: connectedWires
+          });
+        } else if (!comp.katapult?.parentInsulatorId) {
+          ungroupedComparisons.push(comp);
+        }
       });
 
     return { insulators, ungroupedComparisons };
   };
 
   const { insulators, ungroupedComparisons } = groupEnhancedComparisons();
+  
+  // Create a merged and ordered list for rendering with cross-arm hierarchy
+  const createOrderedRenderList = () => {
+    const spidaAttachments = enhancedComparisons
+      .filter(comp => comp.spida)
+      .map(comp => comp.spida!);
+    const sortedSpidaAttachments = sortWithCrossArmHierarchy(spidaAttachments);
+    const renderItems: Array<{ type: 'insulator' | 'ungrouped'; data: any }> = [];
+    
+    sortedSpidaAttachments.forEach(attachment => {
+      if (attachment.type.toLowerCase().includes('insulator') && !attachment.type.toLowerCase().includes('cross-arm')) {
+        // Find the corresponding insulator group
+        const insulatorGroup = insulators.find(ins => ins.insulator.spida?.id === attachment.id);
+        if (insulatorGroup) {
+          renderItems.push({ type: 'insulator', data: insulatorGroup });
+        }
+      } else if (!attachment.parentInsulatorId) {
+        // Find the corresponding ungrouped comparison
+        const ungroupedItem = ungroupedComparisons.find(ung => ung.spida?.id === attachment.id);
+        if (ungroupedItem) {
+          renderItems.push({ type: 'ungrouped', data: ungroupedItem });
+        }
+      }
+    });
+    
+    // Add any Katapult-only comparisons
+    ungroupedComparisons
+      .filter(comp => !comp.spida && comp.katapult)
+      .forEach(comp => {
+        renderItems.push({ type: 'ungrouped', data: comp });
+      });
+    
+    return renderItems;
+  };
+  
+  const orderedRenderList = createOrderedRenderList();
 
   const DeltaCell: React.FC<{ spida: any; kat: any }> = ({ spida, kat }) => {
     if (!spida || !kat) return <span className="text-slate-400 text-xs">N/A</span>;
@@ -113,53 +177,61 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
         </tr>
       </thead>
       <tbody>
-        {/* Render insulators with their wires */}
-        {insulators.map((group, idx) => (
+        {/* Render attachments in hierarchy-sorted order */}
+        {orderedRenderList.map((item, idx) => {
+          if (item.type === 'insulator') {
+            const group = item.data as EnhancedGroupedInsulator;
+            return (
           <React.Fragment key={group.insulator.spida?.id || group.insulator.katapult?.id || `enhanced-insulator-group-${idx}`}>
             {/* Insulator parent row */}
             <tr className="bg-slate-800 text-white">
               <td style={styles.tdParent}>
-                {group.insulator.spida || group.insulator.katapult ? (
-                  <div style={{ fontWeight: 600, color: '#d1d5db' }}>
-                    📍 {group.insulator.spida?.owner || group.insulator.katapult?.owner} ‒ {group.insulator.spida?.description || group.insulator.katapult?.description}
-                    {group.insulator.changeType === 'brand-new' && (
-                      <span style={{ 
-                        backgroundColor: '#10b981', 
-                        color: 'white', 
-                        padding: '2px 6px', 
-                        borderRadius: '8px', 
-                        fontSize: '0.7em', 
-                        fontWeight: 'bold',
-                        marginLeft: '6px' 
-                      }}>
-                        {group.insulator.sourceLabel === 'KATAPULT NEW' ? 'KATAPULT NEW' : 'NEW'}
-                      </span>
-                    )}
-                    {group.insulator.changeType === 'height-change' && (
-                      <span 
-                        style={{ 
-                          backgroundColor: '#f59e0b', 
+                                  {group.insulator.spida || group.insulator.katapult ? (
+                    <div style={{ fontWeight: 600, color: '#d1d5db' }}>
+                      📍 {group.insulator.spida?.owner || group.insulator.katapult?.owner} ‒ {group.insulator.spida?.description || group.insulator.katapult?.description}
+                      {(group.insulator.spida?.parentCrossArmId || group.insulator.katapult?.parentCrossArmId) && (
+                        <span style={{ color: '#f59e0b', fontSize: '0.8em', marginLeft: '8px' }}>
+                          (on cross-arm {group.insulator.spida?.parentCrossArmId || group.insulator.katapult?.parentCrossArmId})
+                        </span>
+                      )}
+                      {group.insulator.changeType === 'brand-new' && (
+                        <span style={{ 
+                          backgroundColor: '#10b981', 
                           color: 'white', 
                           padding: '2px 6px', 
                           borderRadius: '8px', 
                           fontSize: '0.7em', 
                           fontWeight: 'bold',
                           marginLeft: '6px' 
-                        }}
-                        title={`Height changed from ${group.insulator.measuredHeight?.toFixed(1)}ft to ${(group.insulator.spida?.height || group.insulator.katapult?.height)?.toFixed(1)}ft`}
-                      >
-                        Δ
-                      </span>
-                    )}
-                    {group.insulator.changeType === 'height-change' && group.insulator.measuredHeight && (
-                      <span style={{ color: '#f59e0b', fontSize: '0.8em', marginLeft: '8px' }}>
-                        (was {formatHeightFtIn(group.insulator.measuredHeight)})
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <span style={{ color: '#718096' }}>No match found</span>
-                )}
+                        }}>
+                          {group.insulator.sourceLabel === 'KATAPULT NEW' ? 'KATAPULT NEW' : 'NEW'}
+                        </span>
+                      )}
+                      {group.insulator.changeType === 'height-change' && (
+                        <span 
+                          style={{ 
+                            backgroundColor: '#f59e0b', 
+                            color: 'white', 
+                            padding: '2px 6px', 
+                            borderRadius: '8px', 
+                            fontSize: '0.7em', 
+                            fontWeight: 'bold',
+                            marginLeft: '6px' 
+                          }}
+                          title={`Height changed from ${group.insulator.measuredHeight?.toFixed(1)}ft to ${(group.insulator.spida?.height || group.insulator.katapult?.height)?.toFixed(1)}ft`}
+                        >
+                          Δ
+                        </span>
+                      )}
+                      {group.insulator.changeType === 'height-change' && group.insulator.measuredHeight && (
+                        <span style={{ color: '#f59e0b', fontSize: '0.8em', marginLeft: '8px' }}>
+                          (was {formatHeightFtIn(group.insulator.measuredHeight)})
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span style={{ color: '#718096' }}>No match found</span>
+                  )}
               </td>
 
               {/* Measured (SPIDA) height */}
@@ -295,105 +367,108 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
               </tr>
             ))}
           </React.Fragment>
-        ))}
+        );
+      } else {
+        // Ungrouped attachment (including cross-arms)
+        const comparison = item.data as EnhancedComparison;
+        const { spida, katapult } = comparison;
+        const isCrossArm = (spida?.type.toLowerCase().includes('cross-arm')) || 
+                          (katapult?.type.toLowerCase().includes('cross-arm'));
 
-        {/* Render ungrouped comparisons */}
-        {ungroupedComparisons.map((comparison, idx) => {
-          const { spida, katapult } = comparison;
-
-          return (
-            <tr
-              key={spida?.id || katapult?.id || `enhanced-${idx}`}
-              className={`${idx % 2 === 0 ? 'bg-slate-800' : 'bg-slate-900'} text-white`}
-            >
-              {/* SPIDA attachment cell */}
-              <td style={styles.td}>
-                {spida || katapult ? (
-                  <div style={{ fontWeight: 500, color: '#a0aec0' }}>
-                    {spida?.owner || katapult?.owner} ‒ {spida?.description || katapult?.description}
-                    {comparison.changeType === 'brand-new' && (
-                      <span style={{ 
-                        backgroundColor: '#10b981', 
+        return (
+          <tr
+            key={spida?.id || katapult?.id || `enhanced-${idx}`}
+            className={`${idx % 2 === 0 ? 'bg-slate-800' : 'bg-slate-900'} text-white`}
+          >
+            {/* SPIDA attachment cell */}
+            <td style={styles.td}>
+              {spida || katapult ? (
+                <div style={{ fontWeight: 500, color: '#a0aec0' }}>
+                  {isCrossArm ? '🔧 ' : ''}{spida?.owner || katapult?.owner} ‒ {spida?.description || katapult?.description}
+                  {comparison.changeType === 'brand-new' && (
+                    <span style={{ 
+                      backgroundColor: '#10b981', 
+                      color: 'white', 
+                      padding: '2px 6px', 
+                      borderRadius: '8px', 
+                      fontSize: '0.7em', 
+                      fontWeight: 'bold',
+                      marginLeft: '6px' 
+                    }}>
+                      {comparison.sourceLabel === 'KATAPULT NEW' ? 'KATAPULT NEW' : 'NEW'}
+                    </span>
+                  )}
+                  {comparison.changeType === 'height-change' && (
+                    <span 
+                      style={{ 
+                        backgroundColor: '#f59e0b', 
                         color: 'white', 
                         padding: '2px 6px', 
                         borderRadius: '8px', 
                         fontSize: '0.7em', 
                         fontWeight: 'bold',
                         marginLeft: '6px' 
-                      }}>
-                        {comparison.sourceLabel === 'KATAPULT NEW' ? 'KATAPULT NEW' : 'NEW'}
-                      </span>
-                    )}
-                    {comparison.changeType === 'height-change' && (
-                      <span 
-                        style={{ 
-                          backgroundColor: '#f59e0b', 
-                          color: 'white', 
-                          padding: '2px 6px', 
-                          borderRadius: '8px', 
-                          fontSize: '0.7em', 
-                          fontWeight: 'bold',
-                          marginLeft: '6px' 
-                        }}
-                        title={`Height changed from ${comparison.measuredHeight?.toFixed(1)}ft to ${(spida?.height || katapult?.height)?.toFixed(1)}ft`}
-                      >
-                        Δ
-                      </span>
-                    )}
-                    {comparison.changeType === 'height-change' && comparison.measuredHeight && (
-                      <span style={{ color: '#f59e0b', fontSize: '0.8em', marginLeft: '8px' }}>
-                        (was {formatHeightFtIn(comparison.measuredHeight)})
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <span style={{ color: '#718096' }}>No match found</span>
-                )}
-              </td>
+                      }}
+                      title={`Height changed from ${comparison.measuredHeight?.toFixed(1)}ft to ${(spida?.height || katapult?.height)?.toFixed(1)}ft`}
+                    >
+                      Δ
+                    </span>
+                  )}
+                  {comparison.changeType === 'height-change' && comparison.measuredHeight && (
+                    <span style={{ color: '#f59e0b', fontSize: '0.8em', marginLeft: '8px' }}>
+                      (was {formatHeightFtIn(comparison.measuredHeight)})
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span style={{ color: '#718096' }}>No match found</span>
+              )}
+            </td>
 
-              {/* Measured (SPIDA) height */}
-              <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-                {comparison.measuredHeight !== undefined ? (
-                  <span style={{ color: '#a0aec0' }}>
-                    {formatHeightFtIn(comparison.measuredHeight)}
-                  </span>
-                ) : (
-                  <span style={{ color: '#10b981', fontWeight: 'bold' }}>NEW</span>
-                )}
-              </td>
+            {/* Measured (SPIDA) height */}
+            <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+              {comparison.measuredHeight !== undefined ? (
+                <span style={{ color: '#a0aec0' }}>
+                  {formatHeightFtIn(comparison.measuredHeight)}
+                </span>
+              ) : (
+                <span style={{ color: '#10b981', fontWeight: 'bold' }}>NEW</span>
+              )}
+            </td>
 
-              {/* Proposed height (from Recommended design) */}
-              <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-                {spida ? (
-                  formatHeightFtIn(spida.height)
-                ) : (
-                  <span style={{ color: '#718096' }}>—</span>
-                )}
-              </td>
+            {/* Proposed height (from Recommended design) */}
+            <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+              {spida ? (
+                formatHeightFtIn(spida.height)
+              ) : (
+                <span style={{ color: '#718096' }}>—</span>
+              )}
+            </td>
 
-              {/* Katapult height / info */}
-              <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-                {katapult ? (
-                  <div style={{ 
-                    opacity: katapult.synthetic ? 0.7 : 1, 
-                    fontStyle: katapult.synthetic ? 'italic' : 'normal' 
-                  }}>
-                    {formatHeightFtIn(katapult.height)}
-                    {katapult.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
-                  </div>
-                ) : (
-                  <span style={{ color: '#718096' }}>No proposed match found</span>
-                )}
-              </td>
+            {/* Katapult height / info */}
+            <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+              {katapult ? (
+                <div style={{ 
+                  opacity: katapult.synthetic ? 0.7 : 1, 
+                  fontStyle: katapult.synthetic ? 'italic' : 'normal' 
+                }}>
+                  {formatHeightFtIn(katapult.height)}
+                  {katapult.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
+                </div>
+              ) : (
+                <span style={{ color: '#718096' }}>No proposed match found</span>
+              )}
+            </td>
 
-              {/* Difference */}
-              <td style={{ ...styles.td, textAlign: 'center' }}>
-                <DeltaCell spida={spida} kat={katapult} />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
+            {/* Difference */}
+            <td style={{ ...styles.td, textAlign: 'center' }}>
+              <DeltaCell spida={spida} kat={katapult} />
+            </td>
+          </tr>
+        );
+      }
+    })}
+  </tbody>
     </table>
   );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Attachment } from './types';
 import { formatHeightFtIn } from './comparisonHelpers';
+import { sortWithCrossArmHierarchy, isFirstInsulatorOnCrossArm } from './crossArmSorting';
 
 interface ComparisonTableProps {
   spidaAttachments: Attachment[];
@@ -143,21 +144,23 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
     return bestMatch;
   };
 
-  // Group wires under their parent insulators
+  // Group wires under their parent insulators with cross-arm hierarchy
   const groupAttachments = () => {
     const insulators: GroupedInsulator[] = [];
     const ungroupedAttachments: Array<{ attachment: Attachment; katMatch: Attachment | null }> = [];
 
-    // Find all insulators first
-    spidaAttachments
-      .filter(att => att.type.toLowerCase().includes('insulator'))
-      .sort((a, b) => b.height - a.height) // Sort by height (highest first)
-      .forEach(insulator => {
-        const katMatch = findMatchingAttachment(insulator);
+    // Use cross-arm hierarchy sorting for proper display order
+    const sortedSpidaAttachments = sortWithCrossArmHierarchy(spidaAttachments);
+
+    // Process attachments in their hierarchy-sorted order
+    sortedSpidaAttachments.forEach(attachment => {
+      if (attachment.type.toLowerCase().includes('insulator') && !attachment.type.toLowerCase().includes('cross-arm')) {
+        // This is a regular insulator - group it with its wires
+        const katMatch = findMatchingAttachment(attachment);
         
         // Find wires connected to this insulator
         const connectedWires = spidaAttachments
-          .filter(att => att.parentInsulatorId === insulator.id)
+          .filter(att => att.parentInsulatorId === attachment.id)
           .sort((a, b) => b.height - a.height) // Sort wires by height too
           .map(wire => ({
             wire,
@@ -165,30 +168,50 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
           }));
 
         insulators.push({
-          insulator,
+          insulator: attachment,
           katMatch,
           wires: connectedWires
         });
-      });
-
-    // Find ungrouped attachments (not insulators and not connected to insulators)
-    spidaAttachments
-      .filter(att => 
-        !att.type.toLowerCase().includes('insulator') && 
-        !att.parentInsulatorId
-      )
-      .sort((a, b) => b.height - a.height)
-      .forEach(attachment => {
+      } else if (!attachment.parentInsulatorId) {
+        // This is an ungrouped attachment (cross-arms, guys, equipment, etc.)
         ungroupedAttachments.push({
           attachment,
           katMatch: findMatchingAttachment(attachment)
         });
-      });
+      }
+      // Skip wires that are connected to insulators (they're handled in the insulator grouping above)
+    });
 
     return { insulators, ungroupedAttachments };
   };
 
   const { insulators, ungroupedAttachments } = groupAttachments();
+  
+  // Create a merged and ordered list for rendering
+  const createOrderedRenderList = () => {
+    const sortedSpidaAttachments = sortWithCrossArmHierarchy(spidaAttachments);
+    const renderItems: Array<{ type: 'insulator' | 'ungrouped'; data: any }> = [];
+    
+    sortedSpidaAttachments.forEach(attachment => {
+      if (attachment.type.toLowerCase().includes('insulator') && !attachment.type.toLowerCase().includes('cross-arm')) {
+        // Find the corresponding insulator group
+        const insulatorGroup = insulators.find(ins => ins.insulator.id === attachment.id);
+        if (insulatorGroup) {
+          renderItems.push({ type: 'insulator', data: insulatorGroup });
+        }
+      } else if (!attachment.parentInsulatorId) {
+        // Find the corresponding ungrouped attachment
+        const ungroupedItem = ungroupedAttachments.find(ung => ung.attachment.id === attachment.id);
+        if (ungroupedItem) {
+          renderItems.push({ type: 'ungrouped', data: ungroupedItem });
+        }
+      }
+    });
+    
+    return renderItems;
+  };
+  
+  const orderedRenderList = createOrderedRenderList();
 
   const DeltaCell: React.FC<{ spida: Attachment; kat: Attachment | null }> = ({ spida, kat }) => {
     if (!kat) return <span className="text-slate-400 text-xs">N/A</span>;
@@ -229,119 +252,132 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
         </tr>
       </thead>
       <tbody>
-        {/* Render insulators with their wires */}
-        {insulators.map((group, idx) => (
-          <React.Fragment key={group.insulator.id || `insulator-group-${idx}`}>
-            {/* Insulator parent row */}
-            <tr className="bg-slate-800 text-white">
-              <td style={styles.tdParent}>
-                <div style={{ fontWeight: 600, color: '#d1d5db' }}>
-                  📍 {group.insulator.owner} ‒ {group.insulator.description}
-                </div>
-              </td>
-              <td style={{ ...styles.tdParent, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-                {formatHeightFtIn(group.insulator.height)}
-              </td>
-              <td style={{ ...styles.tdParent, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-                {group.katMatch ? (
-                  <div style={{ 
-                    opacity: group.katMatch.synthetic ? 0.7 : 1, 
-                    fontStyle: group.katMatch.synthetic ? 'italic' : 'normal' 
-                  }}>
-                    <div style={{ fontWeight: 600 }}>
-                      {formatHeightFtIn(group.katMatch.height)}
-                      {group.katMatch.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
+        {/* Render attachments in hierarchy-sorted order */}
+        {orderedRenderList.map((item, idx) => {
+          if (item.type === 'insulator') {
+            const group = item.data as GroupedInsulator;
+            return (
+              <React.Fragment key={group.insulator.id || `insulator-group-${idx}`}>
+                {/* Insulator parent row */}
+                <tr className="bg-slate-800 text-white">
+                  <td style={styles.tdParent}>
+                    <div style={{ fontWeight: 600, color: '#d1d5db' }}>
+                      📍 {group.insulator.owner} ‒ {group.insulator.description}
+                      {group.insulator.parentCrossArmId && (
+                        <span style={{ color: '#f59e0b', fontSize: '0.8em', marginLeft: '8px' }}>
+                          (on cross-arm {group.insulator.parentCrossArmId})
+                        </span>
+                      )}
                     </div>
-                    <small style={{ color: '#a0aec0' }}>
-                      {group.katMatch.owner} ‒ {group.katMatch.description}
-                    </small>
-                  </div>
-                ) : (
-                  <span style={{ color: '#718096' }}>No match found</span>
-                )}
-              </td>
-              <td style={{ ...styles.tdParent, textAlign: 'center' }}>
-                <DeltaCell spida={group.insulator} kat={group.katMatch} />
-              </td>
-            </tr>
+                  </td>
+                  <td style={{ ...styles.tdParent, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+                    {formatHeightFtIn(group.insulator.height)}
+                  </td>
+                  <td style={{ ...styles.tdParent, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+                    {group.katMatch ? (
+                      <div style={{ 
+                        opacity: group.katMatch.synthetic ? 0.7 : 1, 
+                        fontStyle: group.katMatch.synthetic ? 'italic' : 'normal' 
+                      }}>
+                        <div style={{ fontWeight: 600 }}>
+                          {formatHeightFtIn(group.katMatch.height)}
+                          {group.katMatch.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
+                        </div>
+                        <small style={{ color: '#a0aec0' }}>
+                          {group.katMatch.owner} ‒ {group.katMatch.description}
+                        </small>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#718096' }}>No match found</span>
+                    )}
+                  </td>
+                  <td style={{ ...styles.tdParent, textAlign: 'center' }}>
+                    <DeltaCell spida={group.insulator} kat={group.katMatch} />
+                  </td>
+                </tr>
 
-            {/* Connected wires as child rows */}
-            {group.wires.map((wireGroup, wireIdx) => (
+                {/* Connected wires as child rows */}
+                {group.wires.map((wireGroup, wireIdx) => (
+                  <tr
+                    key={wireGroup.wire.id || `wire-${wireIdx}`}
+                    className="bg-slate-900/80 text-slate-300"
+                  >
+                    <td style={{ ...styles.tdChild, paddingLeft: '2rem' }}>
+                      <div style={{ fontWeight: 400, color: '#a0aec0' }}>
+                        🔌 {wireGroup.wire.owner} ‒ {wireGroup.wire.description}
+                      </div>
+                    </td>
+                    <td style={{ ...styles.tdChild, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.2em', fontWeight: 500 }}>
+                      {formatHeightFtIn(wireGroup.wire.height)}
+                    </td>
+                    <td style={{ ...styles.tdChild, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.2em', fontWeight: 500 }}>
+                      {wireGroup.katMatch ? (
+                        <div style={{ 
+                          opacity: wireGroup.katMatch.synthetic ? 0.7 : 1, 
+                          fontStyle: wireGroup.katMatch.synthetic ? 'italic' : 'normal' 
+                        }}>
+                          <div style={{ fontWeight: 500 }}>
+                            {formatHeightFtIn(wireGroup.katMatch.height)}
+                            {wireGroup.katMatch.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
+                          </div>
+                          <small style={{ color: '#a0aec0' }}>
+                            {wireGroup.katMatch.owner} ‒ {wireGroup.katMatch.description}
+                          </small>
+                        </div>
+                      ) : (
+                        <span style={{ color: '#718096' }}>No match found</span>
+                      )}
+                    </td>
+                    <td style={{ ...styles.tdChild, textAlign: 'center' }}>
+                      <DeltaCell spida={wireGroup.wire} kat={wireGroup.katMatch} />
+                    </td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            );
+          } else {
+            // Ungrouped attachment (including cross-arms)
+            const ungroupedItem = item.data as { attachment: Attachment; katMatch: Attachment | null };
+            const isCrossArm = ungroupedItem.attachment.type.toLowerCase().includes('cross-arm');
+            
+            return (
               <tr
-                key={wireGroup.wire.id || `wire-${wireIdx}`}
-                className="bg-slate-900/80 text-slate-300"
+                key={ungroupedItem.attachment.id || `ungrouped-${idx}`}
+                className={`${idx % 2 === 0 ? 'bg-slate-800' : 'bg-slate-900'} text-white`}
               >
-                <td style={{ ...styles.tdChild, paddingLeft: '2rem' }}>
-                  <div style={{ fontWeight: 400, color: '#a0aec0' }}>
-                    🔌 {wireGroup.wire.owner} ‒ {wireGroup.wire.description}
+                <td style={styles.td}>
+                  <div style={{ fontWeight: 500, color: '#a0aec0' }}>
+                    {isCrossArm ? '🔧 ' : ''}{ungroupedItem.attachment.owner} ‒ {ungroupedItem.attachment.description}
                   </div>
                 </td>
-                <td style={{ ...styles.tdChild, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.2em', fontWeight: 500 }}>
-                  {formatHeightFtIn(wireGroup.wire.height)}
+                <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+                  {formatHeightFtIn(ungroupedItem.attachment.height)}
                 </td>
-                <td style={{ ...styles.tdChild, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.2em', fontWeight: 500 }}>
-                  {wireGroup.katMatch ? (
+                <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
+                  {ungroupedItem.katMatch ? (
                     <div style={{ 
-                      opacity: wireGroup.katMatch.synthetic ? 0.7 : 1, 
-                      fontStyle: wireGroup.katMatch.synthetic ? 'italic' : 'normal' 
+                      opacity: ungroupedItem.katMatch.synthetic ? 0.7 : 1, 
+                      fontStyle: ungroupedItem.katMatch.synthetic ? 'italic' : 'normal' 
                     }}>
-                      <div style={{ fontWeight: 500 }}>
-                        {formatHeightFtIn(wireGroup.katMatch.height)}
-                        {wireGroup.katMatch.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
+                      <div style={{ fontWeight: 600 }}>
+                        {formatHeightFtIn(ungroupedItem.katMatch.height)}
+                        {ungroupedItem.katMatch.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
                       </div>
                       <small style={{ color: '#a0aec0' }}>
-                        {wireGroup.katMatch.owner} ‒ {wireGroup.katMatch.description}
+                        {ungroupedItem.katMatch.owner} ‒ {ungroupedItem.katMatch.description}
                       </small>
                     </div>
                   ) : (
                     <span style={{ color: '#718096' }}>No match found</span>
                   )}
                 </td>
-                <td style={{ ...styles.tdChild, textAlign: 'center' }}>
-                  <DeltaCell spida={wireGroup.wire} kat={wireGroup.katMatch} />
+                <td style={{ ...styles.td, textAlign: 'center' }}>
+                  <DeltaCell spida={ungroupedItem.attachment} kat={ungroupedItem.katMatch} />
                 </td>
               </tr>
-            ))}
-          </React.Fragment>
-        ))}
-
-        {/* Render ungrouped attachments */}
-        {ungroupedAttachments.map((item, idx) => (
-          <tr
-            key={item.attachment.id || `ungrouped-${idx}`}
-            className={`${idx % 2 === 0 ? 'bg-slate-800' : 'bg-slate-900'} text-white`}
-          >
-            <td style={styles.td}>
-              <div style={{ fontWeight: 500, color: '#a0aec0' }}>
-                {item.attachment.owner} ‒ {item.attachment.description}
-              </div>
-            </td>
-            <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-              {formatHeightFtIn(item.attachment.height)}
-            </td>
-            <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
-              {item.katMatch ? (
-                <div style={{ 
-                  opacity: item.katMatch.synthetic ? 0.7 : 1, 
-                  fontStyle: item.katMatch.synthetic ? 'italic' : 'normal' 
-                }}>
-                  <div style={{ fontWeight: 600 }}>
-                    {formatHeightFtIn(item.katMatch.height)}
-                    {item.katMatch.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
-                  </div>
-                  <small style={{ color: '#a0aec0' }}>
-                    {item.katMatch.owner} ‒ {item.katMatch.description}
-                  </small>
-                </div>
-              ) : (
-                <span style={{ color: '#718096' }}>No match found</span>
-              )}
-            </td>
-            <td style={{ ...styles.td, textAlign: 'center' }}>
-              <DeltaCell spida={item.attachment} kat={item.katMatch} />
-            </td>
-          </tr>
-        ))}
+            );
+          }
+        })}
       </tbody>
     </table>
   );

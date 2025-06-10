@@ -6,6 +6,12 @@ import PoleLocation from './PoleLocation';
 import ComparisonPole from './ComparisonPole';
 import { buildKatapultAttachmentPoints, compareAttachmentPoints } from './attachmentPointHelpers';
 import { 
+  extractSpidaCrossArmWiring, 
+  extractKatapultCrossArmWiring, 
+  groupWiringByCrossArm, 
+  matchCrossArms 
+} from './crossArmMapper';
+import { 
   buildWireDescription, 
   buildInsulatorDescription, 
   buildCrossArmDescription, 
@@ -628,6 +634,88 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           allMatch: allGuysMatch
         });
 
+        // ═══ CROSS-ARM MAPPING ═══
+        let crossArmMatches: Array<{
+          spidaGroup: import('./crossArmMapper').CrossArmGroup | null;
+          katapultGroup: import('./crossArmMapper').CrossArmGroup | null;
+          heightDifferenceFt?: number;
+          matchType: 'exact' | 'close' | 'spida-only' | 'katapult-only';
+        }> = [];
+        
+        try {
+          // Extract SPIDA cross-arm wiring from measured design structure
+          let spidaCrossArmWiring: any[] = [];
+          if (measuredDesign?.originalStructure) {
+            // Now we have access to the original structure data for cross-arm extraction
+            const structure = measuredDesign.originalStructure;
+            
+            console.log(`🔧 Attempting cross-arm extraction for pole ${spidaPole.label}:`, {
+              hasStructure: !!structure,
+              hasCrossArms: !!structure.crossArms,
+              hasInsulators: !!structure.insulators,
+              hasWires: !!structure.wires,
+              crossArmsCount: structure.crossArms?.length || 0,
+              insulatorsCount: structure.insulators?.length || 0,
+              wiresCount: structure.wires?.length || 0,
+              crossArmIds: structure.crossArms?.map((arm: any) => arm.id) || [],
+              insulatorIds: structure.insulators?.map((ins: any) => ins.id) || []
+            });
+            
+            spidaCrossArmWiring = extractSpidaCrossArmWiring(structure);
+            
+            console.log(`🔧 Cross-arm extraction result for pole ${spidaPole.label}:`, {
+              extractedWiring: spidaCrossArmWiring.length,
+              wiringDetails: spidaCrossArmWiring.map(w => ({
+                crossArmId: w.crossArmId,
+                insulatorId: w.insulatorId,
+                wireId: w.wireId,
+                height: w.crossArmHt
+              }))
+            });
+          } else {
+            console.log(`🔧 No original structure data available for pole ${spidaPole.label}:`, {
+              hasMeasuredDesign: !!measuredDesign,
+              hasOriginalStructure: !!measuredDesign?.originalStructure
+            });
+          }
+          
+          // Extract Katapult cross-arm wiring with pseudo cross-arms
+          const katapultCrossArmWiring = extractKatapultCrossArmWiring(
+            katapultData, 
+            poleTag,
+            katapultData.traces?.trace_data || {}
+          );
+          
+          // Process cross-arm mapping if we have data from either system
+          if (spidaCrossArmWiring.length > 0 || katapultCrossArmWiring.length > 0) {
+            console.log(`🔧 Pole ${spidaPole.label} cross-arm mapping:`, {
+              spidaWiring: spidaCrossArmWiring.length,
+              katapultWiring: katapultCrossArmWiring.length,
+              spidaArms: new Set(spidaCrossArmWiring.map(w => w.crossArmId)).size,
+              katapultPseudoArms: new Set(katapultCrossArmWiring.map(w => w.crossArmId)).size
+            });
+            
+            // Group wiring by cross-arms for each system separately
+            const allGroups = groupWiringByCrossArm(spidaCrossArmWiring, katapultCrossArmWiring);
+            const spidaGroups = allGroups.filter(g => g.system === 'SPIDA');
+            const katapultGroups = allGroups.filter(g => g.system === 'Katapult');
+            
+            // Match cross-arms between systems
+            crossArmMatches = matchCrossArms(spidaGroups, katapultGroups, 1.0);
+            
+            console.log(`🔧 Pole ${spidaPole.label} cross-arm matches:`, {
+              totalMatches: crossArmMatches.length,
+              exact: crossArmMatches.filter(m => m.matchType === 'exact').length,
+              close: crossArmMatches.filter(m => m.matchType === 'close').length,
+              spidaOnly: crossArmMatches.filter(m => m.matchType === 'spida-only').length,
+              katapultOnly: crossArmMatches.filter(m => m.matchType === 'katapult-only').length
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing cross-arms for pole ${spidaPole.label}:`, error);
+          addWarning(`Failed to process cross-arms for pole ${spidaPole.label}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
         // ═══ HEIGHT VALIDATION ═══
         // Check for physically impossible heights (higher than pole + reasonable buffer)
         const poleHeight = measuredDesign?.pole.height.value || 0;
@@ -669,7 +757,8 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           katapultProposed: katapultPoleData.proposed,
           enhancedProposedComparison: enhancedProposedComparison,
           guyMatchResults: guyMatchResults, // Add guy matching results
-          attachmentPointComparisons: attachmentPointComparisons // Add attachment point comparisons
+          attachmentPointComparisons: attachmentPointComparisons, // Add attachment point comparisons
+          crossArmMatches: crossArmMatches // Add cross-arm mapping results
         };
       });
       setComparisonResults(results);
@@ -772,6 +861,18 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           // Calculate heights for insulators and wires with parent-child relationships
           const wireToInsulatorHeight = new Map<string, number>();
           const wireToInsulatorId = new Map<string, string>();
+          const insulatorToCrossArmId = new Map<string, string>();
+          
+          // Build cross-arm to insulator mapping
+          if (structure.crossArms) {
+            structure.crossArms.forEach((arm: any) => {
+              if (Array.isArray(arm.insulators)) {
+                arm.insulators.forEach((insulatorId: string) => {
+                  insulatorToCrossArmId.set(insulatorId, arm.id);
+                });
+              }
+            });
+          }
           
           if (structure.insulators) {
             structure.insulators.forEach((ins: any) => {
@@ -895,12 +996,16 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
               const finalHeight = toMetres(rawHeight, unit);
               
+              // Check if this insulator is on a cross-arm
+              const parentCrossArmId = insulatorToCrossArmId.get(ins.id);
+              
               attachments.push({
                 id: ins.id || `insulator-${attachments.length}`,
                 type: `Insulator`,
                 owner: ownerId,
                 description: namingResult.displayName,
                 height: finalHeight,
+                parentCrossArmId: parentCrossArmId, // NEW: Link to parent cross-arm
                 poleScid: location.label
               });
             });
@@ -909,7 +1014,12 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           // Log all naming warnings for this pole
           logNamingWarnings(namingWarnings, location.label);
           
-          return { label: design.label, pole: { ...structure.pole.clientItem }, attachments };
+          return { 
+            label: design.label, 
+            pole: { ...structure.pole.clientItem }, 
+            attachments,
+            originalStructure: structure // NEW: Preserve original structure for cross-arm extraction
+          };
         }),
       }))
     );

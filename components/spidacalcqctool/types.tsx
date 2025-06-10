@@ -9,6 +9,7 @@ export interface Attachment {
     height: number;
     synthetic?: boolean; // Flag for synthetic attachments (e.g., insulators derived from wire heights)
     parentInsulatorId?: string;      // NEW: links wires to their parent insulator
+    parentCrossArmId?: string;       // NEW: links insulators to their parent cross-arm
     poleScid?: string;               // NEW: pole identifier for grouping
   }
   
@@ -45,6 +46,7 @@ export interface Attachment {
       };
     };
     attachments: Attachment[];
+    originalStructure?: any; // NEW: Preserve original SPIDA structure for cross-arm processing
   }
   
   // Interface for a single pole location, containing its designs
@@ -189,4 +191,12 @@ export interface Attachment {
     
     // NEW: Attachment point comparisons
     attachmentPointComparisons?: AttachmentPointComparison[];
+    
+    // NEW: Cross-arm mapping results
+    crossArmMatches?: Array<{
+      spidaGroup: import('./crossArmMapper').CrossArmGroup | null;
+      katapultGroup: import('./crossArmMapper').CrossArmGroup | null;
+      heightDifferenceFt?: number;
+      matchType: 'exact' | 'close' | 'spida-only' | 'katapult-only';
+    }>;
   }
