@@ -1,13 +1,20 @@
 import { ProcessedPole, HeightComparisonItem, HeightComparisonData, HeightComparisonStats } from '../types';
-import { HEIGHT_COMPARISON_CONSTANTS, HEIGHT_COMPARISON_STATUS_COLORS } from '../components/height-comparison/HeightComparisonConstants';
 
-const { 
-  METERS_TO_FEET, 
-  DEFAULT_THRESHOLD, 
-  MIN_CREDIBLE_HEIGHT_FT,
-  MAX_CREDIBLE_HEIGHT_FT,
-  ATTACHMENT_TO_POLE_HEIGHT_BUFFER_FT
-} = HEIGHT_COMPARISON_CONSTANTS;
+// Minimal constants to replace the deleted height-comparison folder
+const HEIGHT_COMPARISON_CONSTANTS = {
+  METERS_TO_FEET: 3.28084,
+  DEFAULT_THRESHOLD: 1.0,
+  MIN_CREDIBLE_HEIGHT_FT: 10,
+  MAX_CREDIBLE_HEIGHT_FT: 200,
+  ATTACHMENT_TO_POLE_HEIGHT_BUFFER_FT: 2
+};
+
+const HEIGHT_COMPARISON_STATUS_COLORS = {
+  OK: '#10B981',
+  'HEIGHT DIFF': '#F59E0B',
+  'ONLY IN KAT': '#3B82F6',
+  'ONLY IN SPIDA': '#8B5CF6'
+};
 
 export class HeightComparisonService {
 
@@ -136,7 +143,7 @@ export class HeightComparisonService {
 
     if (typeof heightObj === 'number') {
       // Raw number - assume metres if < 60, feet otherwise
-      return heightObj < 60 ? heightObj * METERS_TO_FEET : heightObj;
+      return heightObj < 60 ? heightObj * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET : heightObj;
     }
 
     if (typeof heightObj === 'object' && heightObj.value !== undefined) {
@@ -146,12 +153,12 @@ export class HeightComparisonService {
       if (typeof value !== 'number') return null;
 
       if (unit === 'METRE' || unit === 'METER' || unit === 'm') {
-        return value * METERS_TO_FEET;
+        return value * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET;
       } else if (unit === 'FOOT' || unit === 'FEET' || unit === 'ft') {
         return value;
       } else {
         // No unit specified - assume metres if < 60, feet otherwise
-        return value < 60 ? value * METERS_TO_FEET : value;
+        return value < 60 ? value * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET : value;
       }
     }
 
@@ -182,7 +189,7 @@ export class HeightComparisonService {
       }
     });
 
-    return foundAttachment ? maxHeight + ATTACHMENT_TO_POLE_HEIGHT_BUFFER_FT : null;
+    return foundAttachment ? maxHeight + HEIGHT_COMPARISON_CONSTANTS.ATTACHMENT_TO_POLE_HEIGHT_BUFFER_FT : null;
   }
 
   /**
@@ -208,14 +215,14 @@ export class HeightComparisonService {
         // Handle unit conversion
         if (pattern.source.includes('m')) {
           // It's in meters, convert to feet
-          return this.normalizeHeight(value * METERS_TO_FEET);
+          return this.normalizeHeight(value * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET);
         } else if (pattern.source.includes('ft') || pattern.source.includes('\/') || pattern.source.includes('-')) {
           // It's in feet
           return this.normalizeHeight(value);
         } else {
           // Just a number - for SPIDA assume metres if < 60, for Katapult assume feet
           if (source === 'spida' && value < 60) {
-            return this.normalizeHeight(value * METERS_TO_FEET);
+            return this.normalizeHeight(value * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET);
           } else {
             return this.normalizeHeight(value);
           }
@@ -230,7 +237,7 @@ export class HeightComparisonService {
    * Check if height value is credible for utility poles
    */
   private static isCredibleFeet(value: number): boolean {
-    return value > MIN_CREDIBLE_HEIGHT_FT && value < MAX_CREDIBLE_HEIGHT_FT;
+    return value > HEIGHT_COMPARISON_CONSTANTS.MIN_CREDIBLE_HEIGHT_FT && value < HEIGHT_COMPARISON_CONSTANTS.MAX_CREDIBLE_HEIGHT_FT;
   }
 
   /**
@@ -245,7 +252,7 @@ export class HeightComparisonService {
    */
   static generateHeightComparison(
     poles: ProcessedPole[], 
-    threshold: number = DEFAULT_THRESHOLD
+    threshold: number = HEIGHT_COMPARISON_CONSTANTS.DEFAULT_THRESHOLD
   ): HeightComparisonData {
     const items: HeightComparisonItem[] = [];
     
@@ -290,8 +297,6 @@ export class HeightComparisonService {
       threshold
     };
   }
-
-
 
   /**
    * Extract wire height information from raw data
@@ -369,8 +374,6 @@ export class HeightComparisonService {
     return items;
   }
 
-
-
   /**
    * Extract wire information from Katapult raw data
    */
@@ -417,7 +420,7 @@ export class HeightComparisonService {
             if (height !== null) {
               wires.push({
                 description: wire.description || wire.type || 'Wire',
-                heightFt: height * METERS_TO_FEET // SPIDA uses meters
+                heightFt: height * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET // SPIDA uses meters
               });
             }
           });
@@ -471,7 +474,7 @@ export class HeightComparisonService {
             if (height !== null) {
               attachments.push({
                 description: attachment.description || attachment.type || 'Attachment',
-                heightFt: height * METERS_TO_FEET // SPIDA uses meters
+                heightFt: height * HEIGHT_COMPARISON_CONSTANTS.METERS_TO_FEET // SPIDA uses meters
               });
             }
           });

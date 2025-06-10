@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import DemoTutorial from './DemoTutorial';
 import AIAnalytics from './AIAnalytics';
-import HeightComparisonTable from './HeightComparisonTable';
 import { CoverSheetTable } from './CoverSheetTable';
 import { DataManagement } from './DataManagement';
 import { MakeReadyReport } from './MakeReadyReport';
+import SpidaQcTool from './spidacalcqctool/SpidaQcTool';
 
 interface DashboardLayoutProps {
   dataSourceSection: React.ReactNode;
@@ -24,6 +24,8 @@ interface DashboardLayoutProps {
   // Data props for QC Tool
   spidaJson?: any;
   katapultJson?: any;
+  spidaFileName?: string | null;
+  katapultFileName?: string | null;
 }
 
 // Icon components for the navigation
@@ -193,6 +195,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   poleData,
   spidaJson,
   katapultJson,
+  spidaFileName,
+  katapultFileName,
 }) => {
   const [activeTab, setActiveTab] = useState<'demo' | 'data-management' | 'table' | 'coversheet' | 'make-ready' | 'map' | 'analytics' | 'statistics' | 'qc'>('data-management');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
@@ -264,7 +268,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'coversheet' as const, name: 'CoverSheet', icon: <CoverSheetIcon />, description: 'Generate a PE cover sheet from SPIDAcalc data' },
     { id: 'map' as const, name: 'Map View', icon: <MapIcon />, description: 'Geographic visualization' },
     { id: 'statistics' as const, name: 'Statistics', icon: <StatisticsIcon />, description: 'Match statistics & insights' },
-    { id: 'qc' as const, name: 'QC Tool', icon: <QCIcon />, description: 'Compare pole and attachment heights' },
+    { id: 'qc' as const, name: 'SPIDA QC Tool', icon: <QCIcon />, description: 'Analyze and compare pole attachments from SPIDAcalc data' },
     { id: 'analytics' as const, name: 'Analytics', icon: <AnalyticsIcon />, description: 'AI-powered data insights' },
     { id: 'demo' as const, name: 'Demo & Tutorial', icon: <BookOpenIcon />, description: 'Learn how to use QuiC' },
     { id: 'make-ready' as const, name: 'Make-Ready Report', icon: <TableIcon />, description: 'Generate Make-Ready Excel report' },
@@ -385,7 +389,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
             {activeTab === 'qc' && (
               <div className="content-container">
-                <HeightComparisonTable spidaJson={spidaJson} katapultJson={katapultJson} />
+                <SpidaQcTool 
+                  spidaJson={spidaJson} 
+                  katapultJson={katapultJson}
+                  spidaFileName={spidaFileName}
+                  katapultFileName={katapultFileName}
+                />
               </div>
             )}
 

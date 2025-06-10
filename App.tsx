@@ -623,6 +623,8 @@ const App: React.FC = () => {
         poleData={processedPoles}
         spidaJson={rawSpidaJson}
         katapultJson={_rawKatapultJsonFull}
+        spidaFileName={spidaFileName}
+        katapultFileName={katapultFileName}
       />
       <PoleDetailModal pole={selectedPoleForModal} onClose={handleCloseModal} />
     </>
