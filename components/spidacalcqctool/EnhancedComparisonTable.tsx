@@ -369,11 +369,28 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
           </React.Fragment>
         );
       } else {
-        // Ungrouped attachment (including cross-arms)
+        // Ungrouped attachment (including cross-arms, equipment, guys)
         const comparison = item.data as EnhancedComparison;
         const { spida, katapult } = comparison;
-        const isCrossArm = (spida?.type.toLowerCase().includes('cross-arm')) || 
-                          (katapult?.type.toLowerCase().includes('cross-arm'));
+        
+        // Determine type from either spida or katapult data
+        const spidaType = spida?.type.toLowerCase() || '';
+        const katapultType = katapult?.type.toLowerCase() || '';
+        
+        // Check for different attachment types
+        const isCrossArm = spidaType.includes('cross-arm') || katapultType.includes('cross-arm');
+        const isEquipment = spidaType.includes('transformer') || katapultType.includes('transformer') ||
+                           spidaType.includes('light') || katapultType.includes('light') ||
+                           spidaType.includes('equipment') || katapultType.includes('equipment') ||
+                           spidaType.includes('pole top') || katapultType.includes('pole top') ||
+                           spidaType.includes('riser') || katapultType.includes('riser') ||
+                           spidaType.includes('drip') || katapultType.includes('drip') ||
+                           spidaType.includes('loop') || katapultType.includes('loop');
+        const isGuy = spidaType.includes('guy') || katapultType.includes('guy');
+        
+        // Use wrench icon for cross-arms, equipment, and guys
+        const needsWrenchIcon = isCrossArm || isEquipment || isGuy;
+        const icon = needsWrenchIcon ? '🔧 ' : '';
 
         return (
           <tr
@@ -384,7 +401,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
             <td style={styles.td}>
               {spida || katapult ? (
                 <div style={{ fontWeight: 500, color: '#a0aec0' }}>
-                  {isCrossArm ? '🔧 ' : ''}{spida?.owner || katapult?.owner} ‒ {spida?.description || katapult?.description}
+                  {icon}{spida?.owner || katapult?.owner} ‒ {spida?.description || katapult?.description}
                   {comparison.changeType === 'brand-new' && (
                     <span style={{ 
                       backgroundColor: '#10b981', 

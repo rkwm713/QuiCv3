@@ -26,7 +26,6 @@ const BAND_TOL_FT = 0.25; // +/-3" snap window
 
 // Unit conversion helpers
 const metersToFeet = (m: number): number => m * 3.28084;
-const feetToMeters = (ft: number): number => ft * 0.3048;
 const inchesToFeet = (inches: number): number => inches / 12;
 
 /**
@@ -66,7 +65,6 @@ export const extractSpidaCrossArmWiring = (structure: any): CrossArmWiring[] => 
   }
   
   // Build lookup maps
-  const armById = Object.fromEntries(structure.crossArms.map((a: any) => [a.id, a]));
   const insById = Object.fromEntries(structure.insulators.map((i: any) => [i.id, i]));
   const wireById = Object.fromEntries(structure.wires.map((w: any) => [w.id, w]));
   

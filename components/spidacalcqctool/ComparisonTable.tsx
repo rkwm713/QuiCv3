@@ -1,7 +1,7 @@
 import React from 'react';
 import { Attachment } from './types';
 import { formatHeightFtIn } from './comparisonHelpers';
-import { sortWithCrossArmHierarchy, isFirstInsulatorOnCrossArm } from './crossArmSorting';
+import { sortWithCrossArmHierarchy } from './crossArmSorting';
 
 interface ComparisonTableProps {
   spidaAttachments: Attachment[];
@@ -336,9 +336,20 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
               </React.Fragment>
             );
           } else {
-            // Ungrouped attachment (including cross-arms)
+            // Ungrouped attachment (including cross-arms, equipment, guys)
             const ungroupedItem = item.data as { attachment: Attachment; katMatch: Attachment | null };
-            const isCrossArm = ungroupedItem.attachment.type.toLowerCase().includes('cross-arm');
+            const type = ungroupedItem.attachment.type.toLowerCase();
+            
+            // Determine the appropriate icon and formatting
+            const isCrossArm = type.includes('cross-arm');
+            const isEquipment = type.includes('transformer') || type.includes('light') || 
+                               type.includes('equipment') || type.includes('pole top') ||
+                               type.includes('riser') || type.includes('drip') || type.includes('loop');
+            const isGuy = type.includes('guy');
+            
+            // Use wrench icon for cross-arms, equipment, and guys
+            const needsWrenchIcon = isCrossArm || isEquipment || isGuy;
+            const icon = needsWrenchIcon ? '🔧 ' : '';
             
             return (
               <tr
@@ -347,7 +358,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
               >
                 <td style={styles.td}>
                   <div style={{ fontWeight: 500, color: '#a0aec0' }}>
-                    {isCrossArm ? '🔧 ' : ''}{ungroupedItem.attachment.owner} ‒ {ungroupedItem.attachment.description}
+                    {icon}{ungroupedItem.attachment.owner} ‒ {ungroupedItem.attachment.description}
                   </div>
                 </td>
                 <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
