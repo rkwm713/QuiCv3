@@ -5,6 +5,21 @@ import { SpidaCalcData, PoleLocationData, Attachment, KatapultData, ComparisonRe
 import PoleLocation from './PoleLocation';
 import ComparisonPole from './ComparisonPole';
 import { buildSpidaAttachmentPoints, buildKatapultAttachmentPoints, compareAttachmentPoints } from './attachmentPointHelpers';
+import { 
+  buildWireDescription, 
+  buildInsulatorDescription, 
+  buildCrossArmDescription, 
+  buildGuyDescription, 
+  buildEquipmentDescription,
+  buildCommunicationDescription,
+  buildKatapultTraceName,
+  buildKatapultEquipmentName,
+  buildKatapultGuyName,
+  buildCrossArmIdSet,
+  logNamingWarnings,
+  normalizeForComparison,
+  type NamingResult
+} from './namingHelpers';
 
 // Conversion factor from inches (Katapult heights) to metres
 const INCHES_TO_METRES = 0.0254;
@@ -57,25 +72,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
     setWarnings(prev => [...prev, message]);
   };
 
-  // Helper function to get proper insulator display name from SPIDA data
-  const getInsulatorDisplayName = (insulatorId: string, spidaData: SpidaCalcData): string => {
-    const match = insulatorId.match(/Insulator#(\d+)/);
-    if (!match) return 'Unknown Insulator';
-    
-    const idx = parseInt(match[1], 10) - 1; // Fix off-by-one: SPIDA IDs are 1-based, arrays are 0-based
-    const definition = spidaData.clientData?.insulators?.[idx];
-    
-    if (definition?.size) {
-      return definition.size;
-    }
-    
-    // Fallback to any available alias
-    if (definition?.aliases?.[0]?.size) {
-      return definition.aliases[0].size;
-    }
-    
-    return 'Unknown Insulator';
-  };
+  // Note: Insulator naming is now handled by centralized naming helpers in namingHelpers.ts
 
   // ════════════════════════════════════════════════════════════
   // UNIT CONVERSION HELPER - NORMALIZE ALL HEIGHTS TO METRES
@@ -507,6 +504,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
             ...recAttachment, // This preserves the cross-arm indicators and all other original data
             id: recAttachment.id || `spida-rec-${enhancedProposedComparison.length}`,
             poleScid: spidaPole.label,
+            parentInsulatorId: recAttachment.parentInsulatorId, // Preserve parent insulator ID for hierarchical display
           };
 
           // Debug logging to verify cross-arm indicators are preserved
@@ -738,6 +736,10 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
         designs: location.designs.map((design: any) => {
           const { structure } = design;
           const attachments: Attachment[] = [];
+          const namingWarnings: string[] = [];
+          
+          // Build cross-arm ID set for safe cross-arm detection
+          const crossArmIds = buildCrossArmIdSet(structure);
           
           // Add cross-arms as standalone attachments
           if (structure.crossArms) {
@@ -751,20 +753,25 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 addWarning(`Cross-arm ${arm.id} on pole ${location.label} has no height data`);
               }
               
+              // Use robust naming helper
+              const namingResult = buildCrossArmDescription(arm);
+              namingWarnings.push(...namingResult.warnings);
+              
               // Add cross-arms as standalone elements
               attachments.push({
                 id: arm.id,
                 type: 'Cross-arm',
-                owner: structure.pole?.owner?.id ?? 'CPS',
-                description: arm.clientItem?.size ?? arm.clientItem ?? 'Cross-arm',
+                owner: arm.owner?.id || structure.pole?.owner?.id || 'CPS',
+                description: namingResult.displayName,
                 height: heightInMetres,
                 poleScid: location.label
               });
             });
           }
 
-          // Calculate heights for insulators and wires without parent-child relationships
+          // Calculate heights for insulators and wires with parent-child relationships
           const wireToInsulatorHeight = new Map<string, number>();
+          const wireToInsulatorId = new Map<string, string>();
           
           if (structure.insulators) {
             structure.insulators.forEach((ins: any) => {
@@ -773,10 +780,11 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
               const heightInMetres = toMetres(rawHeight, unit);
               
-              // Map wires to this insulator's height for legacy compatibility
+              // Map wires to this insulator's height and ID for parent-child relationships
               if (Array.isArray(ins.wires)) {
                 ins.wires.forEach((wireId: string) => {
                   wireToInsulatorHeight.set(wireId, heightInMetres);
+                  wireToInsulatorId.set(wireId, ins.id);
                 });
               }
             });
@@ -784,44 +792,74 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
           if (structure.wires) {
             structure.wires.forEach((w: any) => {
-              // Use insulator ground height if wire is connected to an insulator, otherwise use wire height
-              const rawHeight = wireToInsulatorHeight.get(w.id) ?? w.attachmentHeight.value;
-              const displayHeight = toMetres(rawHeight, (w.attachmentHeight.unit ?? 'METRE') as Unit);
+              // Check if wire is connected to an insulator (height already in metres)
+              const insulatorHeight = wireToInsulatorHeight.get(w.id);
+              const parentInsulatorId = wireToInsulatorId.get(w.id);
+              let displayHeight: number;
+              
+              if (insulatorHeight !== undefined) {
+                // Use insulator height (already converted to metres)
+                displayHeight = insulatorHeight;
+              } else {
+                // Use wire's own height and convert to metres
+                displayHeight = toMetres(w.attachmentHeight.value, (w.attachmentHeight.unit ?? 'METRE') as Unit);
+              }
               
               // Enhanced communication service detection
               const isCommService = w.usageGroup?.toLowerCase().includes('comm') || 
                                   w.usageGroup?.toLowerCase().includes('service') ||
                                   w.usageGroup?.toLowerCase().includes('drop');
               
+              // Use appropriate naming helper based on wire type
+              let namingResult: NamingResult;
+              if (isCommService) {
+                namingResult = buildCommunicationDescription(w);
+              } else {
+                namingResult = buildWireDescription(w);
+              }
+              
+              namingWarnings.push(...namingResult.warnings);
+              
               attachments.push({ 
                 id: w.id || `wire-${attachments.length}`,
                 type: w.usageGroup, 
                 owner: w.owner.id, 
-                description: w.clientItem.size, 
+                description: namingResult.displayName,
                 height: displayHeight,
+                parentInsulatorId: parentInsulatorId, // Assign parent insulator ID
                 poleScid: location.label
               });
             });
           }
           if (structure.guys) {
-            structure.guys.forEach((g: any) => attachments.push({ 
-              id: g.id || `guy-${attachments.length}`,
-              type: 'Guy', 
-              owner: g.owner.id, 
-              description: g.clientItem.size, 
-              height: toMetres(g.attachmentHeight.value, (g.attachmentHeight.unit ?? 'METRE') as Unit),
-              poleScid: location.label
-            }));
+            structure.guys.forEach((g: any) => {
+              const namingResult = buildGuyDescription(g);
+              namingWarnings.push(...namingResult.warnings);
+              
+              attachments.push({ 
+                id: g.id || `guy-${attachments.length}`,
+                type: 'Guy', 
+                owner: g.owner.id, 
+                description: namingResult.displayName, 
+                height: toMetres(g.attachmentHeight.value, (g.attachmentHeight.unit ?? 'METRE') as Unit),
+                poleScid: location.label
+              });
+            });
           }
           if (structure.equipments) {
-            structure.equipments.forEach((equip: any) => attachments.push({ 
-              id: equip.id || `equipment-${attachments.length}`,
-              type: equip.clientItem.type, 
-              owner: equip.owner.id, 
-              description: equip.clientItem.size, 
-              height: toMetres(equip.attachmentHeight.value, (equip.attachmentHeight.unit ?? 'METRE') as Unit),
-              poleScid: location.label
-            }));
+            structure.equipments.forEach((equip: any) => {
+              const namingResult = buildEquipmentDescription(equip);
+              namingWarnings.push(...namingResult.warnings);
+              
+              attachments.push({ 
+                id: equip.id || `equipment-${attachments.length}`,
+                type: equip.clientItem.type, 
+                owner: equip.owner.id, 
+                description: namingResult.displayName, 
+                height: toMetres(equip.attachmentHeight.value, (equip.attachmentHeight.unit ?? 'METRE') as Unit),
+                poleScid: location.label
+              });
+            });
           }
           
           // Add pole top measurement from SPIDA structure.pole.agl
@@ -848,29 +886,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 }
               }
 
-              // Extract insulator name and size from SPIDACalc structure using helper
-              const rawInsulatorName = ins.clientItem || 'Unknown Insulator';
-              const insulatorSize = getInsulatorDisplayName(ins.id, data);
-              
-              // Safety check: prevent cross-arm descriptions from being used as insulator names
-              const isCrossArmDescription = (name: string): boolean => {
-                const lowerName = name.toLowerCase();
-                return lowerName.includes('clamp') || 
-                       lowerName.includes('tangent') || 
-                       lowerName.includes('bolt') ||
-                       lowerName.includes('crossarm') ||
-                       lowerName.includes('cross-arm') ||
-                       lowerName.includes('hd ') ||
-                       lowerName.includes('tb');
-              };
-              
-              // Use safe insulator name
-              const insulatorName = isCrossArmDescription(rawInsulatorName) ? 
-                'Insulator' : rawInsulatorName;
-                
-              // Also apply safety check to insulator size
-              const safeInsulatorSize = isCrossArmDescription(insulatorSize) ? 
-                'Unknown Insulator' : insulatorSize;
+              // Use robust naming helper with cross-arm safety
+              const namingResult = buildInsulatorDescription(ins, crossArmIds);
+              namingWarnings.push(...namingResult.warnings);
 
               // Use direct insulator height without cross-arm calculations
               const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
@@ -879,14 +897,18 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               
               attachments.push({
                 id: ins.id || `insulator-${attachments.length}`,
-                type: `Insulator (${insulatorName})`,
+                type: `Insulator`,
                 owner: ownerId,
-                description: `${safeInsulatorSize !== 'Unknown Insulator' ? safeInsulatorSize : insulatorName}`,
+                description: namingResult.displayName,
                 height: finalHeight,
                 poleScid: location.label
               });
             });
           }
+          
+          // Log all naming warnings for this pole
+          logNamingWarnings(namingWarnings, location.label);
+          
           return { label: design.label, pole: { ...structure.pole.clientItem }, attachments };
         }),
       }))
@@ -898,6 +920,8 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
     if (!data.nodes || !data.photos || !data.traces?.trace_data) return katapultMap;
 
     Object.values(data.nodes).forEach((node: KatapultNode) => {
+      const namingWarnings: string[] = [];
+      
       // ────────────────────────────────────────────────────────────
       // Derive pole tag
       // ────────────────────────────────────────────────────────────
@@ -949,6 +973,10 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
             const traceInfo = data.traces.trace_data[wire._trace];
             if (!traceInfo) return;
 
+            // Use robust trace naming
+            const traceNamingResult = buildKatapultTraceName(traceInfo);
+            namingWarnings.push(...traceNamingResult.warnings);
+
             // Determine a readable attachment type
             let attachmentType = traceInfo.cable_type;
             if (!attachmentType) {
@@ -963,8 +991,8 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
             const wireAttachment: Attachment = {
               type: attachmentType || 'Unknown',
-              owner: traceInfo.company || 'Unknown',
-              description: traceInfo.label || wire._trace,
+              owner: normalizeForComparison(traceInfo.company || 'Unknown'),
+              description: traceNamingResult.displayName,
               height: wire._measured_height * INCHES_TO_METRES,
             };
 
@@ -982,15 +1010,21 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
             if (equipment._measured_height && equipment._trace) {
               const traceInfo = data.traces.trace_data[equipment._trace];
               const owner = traceInfo?.company?.trim() || 'Unknown';
+              
+              // Use robust equipment naming
+              const equipmentNamingResult = buildKatapultEquipmentName(
+                equipment.equipment_type,
+                owner,
+                equipment.measurement_of
+              );
+              namingWarnings.push(...equipmentNamingResult.warnings);
 
               const equipmentAttachment: Attachment = {
                 type: equipment.equipment_type ? 
                   equipment.equipment_type.charAt(0).toUpperCase() + equipment.equipment_type.slice(1).replace(/_/g, ' ') : 
                   'Equipment',
-                owner: owner,
-                description: equipment.measurement_of ? 
-                  `${equipment.equipment_type || 'Equipment'} (${equipment.measurement_of})` : 
-                  equipment.equipment_type || 'Equipment',
+                owner: normalizeForComparison(owner),
+                description: equipmentNamingResult.displayName,
                 height: equipment._measured_height * INCHES_TO_METRES,
               };
 
@@ -1009,14 +1043,15 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
             if (!traceInfo) return;
             if (traceInfo.proposed === true) return; // Skip proposed
 
-            const company = traceInfo.company || '';
-            const guyType = guyData.guy_type || traceInfo._trace_type || traceInfo.cable_type || 'guy';
+            // Use robust guy naming
+            const guyNamingResult = buildKatapultGuyName(guyData, traceInfo);
+            namingWarnings.push(...guyNamingResult.warnings);
             
             // Use standard 'Guy' type for main comparison table (not canonical types)
             const guyAttachment: Attachment = {
               type: 'Guy',
-              owner: normalizeOwner(company) || 'cps',
-              description: `${guyType} [Katapult guying]`,
+              owner: normalizeForComparison(traceInfo.company || 'cps'),
+              description: guyNamingResult.displayName,
               height: guyData._measured_height * INCHES_TO_METRES,
             };
 
@@ -1067,7 +1102,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 
                 const guyAttachment: Attachment = {
                   type: attachmentType,
-                  owner: normalizeOwner(company) || 'cps',
+                  owner: normalizeForComparison(company) || 'cps',
                   description: `${guyType} [Katapult wire-categorized guy]`,
                   height: wireItem._measured_height * INCHES_TO_METRES,
                 };
@@ -1092,14 +1127,17 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 return;
               }
 
+              // Use robust trace naming
+              const wireTraceNamingResult = buildKatapultTraceName(traceInfo);
+              namingWarnings.push(...wireTraceNamingResult.warnings);
+
               // Name Construction: "{Company} {Cable Type}"
               const attachmentType = `${company} ${cableType}`.trim();
-              const description = `${traceInfo.label || wireItem._trace} [Katapult wire]`;
 
               const wireAttachment: Attachment = {
                 type: attachmentType,
-                owner: normalizeOwner(company) || 'unknown',
-                description: description,
+                owner: normalizeForComparison(company) || 'unknown',
+                description: `${wireTraceNamingResult.displayName} [Katapult wire]`,
                 height: wireItem._measured_height * INCHES_TO_METRES,
               };
 
@@ -1132,33 +1170,18 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               const company = traceInfo.company || '';
               const equipmentType = equipItem.equipment_type || '';
 
-              // Name Construction with Special Rules
-              let attachmentType: string;
-              let description: string;
-
-              if (equipmentType === 'street_light') {
-                attachmentType = `${company} Street Light`;
-                // Check for measurement_of field
-                if (equipItem.measurement_of) {
-                  attachmentType += ` (${equipItem.measurement_of})`;
-                }
-                description = `Street Light${equipItem.measurement_of ? ` - ${equipItem.measurement_of}` : ''} [Katapult equipment]`;
-              } else if (equipmentType === 'riser') {
-                attachmentType = `${company} Riser`;
-                description = `Riser [Katapult equipment]`;
-              } else {
-                // For all other equipment types
-                attachmentType = `${company} ${equipmentType}`;
-                if (equipmentType && !attachmentType.toLowerCase().includes(equipmentType.toLowerCase())) {
-                  attachmentType += ` (${equipmentType})`;
-                }
-                description = `${equipmentType || 'Equipment'} [Katapult equipment]`;
-              }
+              // Use robust equipment naming
+              const photoEquipNamingResult = buildKatapultEquipmentName(
+                equipmentType,
+                company,
+                equipItem.measurement_of
+              );
+              namingWarnings.push(...photoEquipNamingResult.warnings);
 
               const equipmentAttachment: Attachment = {
-                type: attachmentType.trim(),
-                owner: normalizeOwner(company) || ownerFromEquipmentType(equipmentType),
-                description: description,
+                type: photoEquipNamingResult.displayName,
+                owner: normalizeForComparison(company) || ownerFromEquipmentType(equipmentType),
+                description: `${photoEquipNamingResult.displayName} [Katapult equipment]`,
                 height: equipItem._measured_height * INCHES_TO_METRES,
               };
 
@@ -1168,7 +1191,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
               console.log(`🔍 Processed equipment on pole ${poleTag}:`, {
                 tagId,
-                type: attachmentType,
+                type: photoEquipNamingResult.displayName,
                 company,
                 equipmentType,
                 height: equipItem._measured_height,
@@ -1206,7 +1229,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
               const guyAttachment: Attachment = {
                 type: attachmentType.trim(),
-                owner: normalizeOwner(company) || 'cps', // Default to utility
+                owner: normalizeForComparison(company) || 'cps', // Default to utility
                 description: description,
                 height: guyItem._measured_height * INCHES_TO_METRES,
               };
@@ -1250,6 +1273,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
         proposedTypes: proposedAttachments.map(a => a.type).join(', ')
       });
 
+      // Log all naming warnings for this pole
+      logNamingWarnings(namingWarnings, poleTag);
+      
       katapultMap.set(poleTag, { existing: existingAttachments, proposed: proposedAttachments });
     });
 
