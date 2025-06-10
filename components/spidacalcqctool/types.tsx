@@ -11,6 +11,11 @@ export interface Attachment {
     parentInsulatorId?: string;      // NEW: links wires to their parent insulator
     parentCrossArmId?: string;       // NEW: links insulators to their parent cross-arm
     poleScid?: string;               // NEW: pole identifier for grouping
+    
+    // NEW: Movement/relocation data from Katapult mr_move field
+    mrMove?: number;                 // Raw movement value in inches (positive = up, negative = down)
+    moveDirection?: 'up' | 'down' | 'none'; // Direction of movement
+    moveDescription?: string;        // Human-readable description of movement
   }
   
   // NEW: Normalized attachment point that both SPIDA and Katapult converge to

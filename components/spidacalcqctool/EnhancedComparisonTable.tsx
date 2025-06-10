@@ -155,6 +155,31 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
     );
   };
 
+  const MovementCell: React.FC<{ comparison: EnhancedComparison }> = ({ comparison }) => {
+    // Check both SPIDA and Katapult attachments for movement data (prioritize Katapult)
+    const attachment = comparison.katapult || comparison.spida;
+    
+    if (!attachment?.mrMove || attachment.moveDirection === 'none') {
+      return <span className="text-slate-400 text-xs">No movement</span>;
+    }
+    
+    const isUpward = attachment.moveDirection === 'up';
+    const chipClasses = isUpward 
+      ? "px-1.5 rounded text-xs font-mono text-blue-400 bg-blue-900/40"
+      : "px-1.5 rounded text-xs font-mono text-orange-400 bg-orange-900/40";
+    
+    return (
+      <div className="text-center">
+        <span className={chipClasses} title={attachment.moveDescription}>
+          {isUpward ? '⬆️' : '⬇️'} {Math.abs(attachment.mrMove!)}″
+        </span>
+        <div className="text-xs text-slate-400 mt-1">
+          {attachment.moveDescription}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <table
       style={{
@@ -174,6 +199,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
           <th style={{...styles.thCondensed, textAlign: 'center'}}>SPIDA Recommended Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Katapult Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Difference</th>
+          <th style={{...styles.thCondensed, textAlign: 'center'}}>Movement</th>
         </tr>
       </thead>
       <tbody>
@@ -273,6 +299,11 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
               <td style={{ ...styles.tdParent, textAlign: 'center' }}>
                 <DeltaCell spida={group.insulator.spida} kat={group.insulator.katapult} />
               </td>
+
+              {/* Movement */}
+              <td style={{ ...styles.tdParent, textAlign: 'center' }}>
+                <MovementCell comparison={group.insulator} />
+              </td>
             </tr>
 
             {/* Connected wires as child rows */}
@@ -363,6 +394,11 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
                 {/* Difference */}
                 <td style={{ ...styles.tdChild, textAlign: 'center' }}>
                   <DeltaCell spida={wireComp.spida} kat={wireComp.katapult} />
+                </td>
+
+                {/* Movement */}
+                <td style={{ ...styles.tdChild, textAlign: 'center' }}>
+                  <MovementCell comparison={wireComp} />
                 </td>
               </tr>
             ))}
@@ -480,6 +516,11 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
             {/* Difference */}
             <td style={{ ...styles.td, textAlign: 'center' }}>
               <DeltaCell spida={spida} kat={katapult} />
+            </td>
+
+            {/* Movement */}
+            <td style={{ ...styles.td, textAlign: 'center' }}>
+              <MovementCell comparison={comparison} />
             </td>
           </tr>
         );

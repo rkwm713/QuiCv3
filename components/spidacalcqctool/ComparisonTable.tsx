@@ -231,6 +231,28 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
     );
   };
 
+  const MovementCell: React.FC<{ attachment: Attachment | null }> = ({ attachment }) => {
+    if (!attachment?.mrMove || attachment.moveDirection === 'none') {
+      return <span className="text-slate-400 text-xs">No movement</span>;
+    }
+    
+    const isUpward = attachment.moveDirection === 'up';
+    const chipClasses = isUpward 
+      ? "px-1.5 rounded text-xs font-mono text-blue-400 bg-blue-900/40"
+      : "px-1.5 rounded text-xs font-mono text-orange-400 bg-orange-900/40";
+    
+    return (
+      <div className="text-center">
+        <span className={chipClasses} title={attachment.moveDescription}>
+          {isUpward ? '⬆️' : '⬇️'} {Math.abs(attachment.mrMove!)}″
+        </span>
+        <div className="text-xs text-slate-400 mt-1">
+          {attachment.moveDescription}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <table
       style={{
@@ -249,6 +271,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
           <th style={{...styles.thCondensed, textAlign: 'center'}}>SPIDA Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Katapult Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Difference</th>
+          <th style={{...styles.thCondensed, textAlign: 'center'}}>Movement</th>
         </tr>
       </thead>
       <tbody>
@@ -294,6 +317,9 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
                   <td style={{ ...styles.tdParent, textAlign: 'center' }}>
                     <DeltaCell spida={group.insulator} kat={group.katMatch} />
                   </td>
+                  <td style={{ ...styles.tdParent, textAlign: 'center' }}>
+                    <MovementCell attachment={group.katMatch} />
+                  </td>
                 </tr>
 
                 {/* Connected wires as child rows */}
@@ -330,6 +356,9 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
                     </td>
                     <td style={{ ...styles.tdChild, textAlign: 'center' }}>
                       <DeltaCell spida={wireGroup.wire} kat={wireGroup.katMatch} />
+                    </td>
+                    <td style={{ ...styles.tdChild, textAlign: 'center' }}>
+                      <MovementCell attachment={wireGroup.katMatch} />
                     </td>
                   </tr>
                 ))}
@@ -384,6 +413,9 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
                 </td>
                 <td style={{ ...styles.td, textAlign: 'center' }}>
                   <DeltaCell spida={ungroupedItem.attachment} kat={ungroupedItem.katMatch} />
+                </td>
+                <td style={{ ...styles.td, textAlign: 'center' }}>
+                  <MovementCell attachment={ungroupedItem.katMatch} />
                 </td>
               </tr>
             );

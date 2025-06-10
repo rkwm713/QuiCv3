@@ -455,7 +455,72 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
     return Math.abs(a.height - b.height) < HEIGHT_TOLERANCE_M;
   };
 
+  // ════════════════════════════════════════════════════════════
+  // MOVEMENT/RELOCATION PROCESSING FUNCTIONS
+  // ════════════════════════════════════════════════════════════
 
+  // Process mr_move field and generate movement description
+  const processMrMove = (mrMoveRaw: any): {
+    mrMove: number | undefined;
+    moveDirection: 'up' | 'down' | 'none';
+    moveDescription: string;
+  } => {
+    // Handle missing or invalid mr_move data
+    if (mrMoveRaw === undefined || mrMoveRaw === null) {
+      return {
+        mrMove: undefined,
+        moveDirection: 'none',
+        moveDescription: 'No relocation data'
+      };
+    }
+
+    // Convert to number and validate
+    const mrMoveInches = typeof mrMoveRaw === 'number' ? mrMoveRaw : parseFloat(mrMoveRaw);
+    
+    if (isNaN(mrMoveInches)) {
+      console.warn(`Invalid mr_move value: ${mrMoveRaw}`);
+      return {
+        mrMove: undefined,
+        moveDirection: 'none',
+        moveDescription: 'Invalid relocation data'
+      };
+    }
+
+    // Handle zero movement
+    if (Math.abs(mrMoveInches) < 0.1) {
+      return {
+        mrMove: 0,
+        moveDirection: 'none',
+        moveDescription: 'No vertical relocation'
+      };
+    }
+
+    // Determine direction
+    const direction: 'up' | 'down' = mrMoveInches > 0 ? 'up' : 'down';
+    const absInches = Math.abs(mrMoveInches);
+    
+    // Convert to feet/inches and meters
+    const feet = Math.floor(absInches / 12);
+    const inches = Math.round(absInches % 12);
+    const meters = absInches * 0.0254;
+    
+    // Build description
+    let description = direction === 'up' ? 'Raised ' : 'Lowered ';
+    
+    if (feet > 0) {
+      description += `${feet}' ${inches}"`;
+    } else {
+      description += `${inches}"`;
+    }
+    
+    description += ` (${absInches}" ≈ ${meters.toFixed(2)}m)`;
+    
+    return {
+      mrMove: mrMoveInches,
+      moveDirection: direction,
+      moveDescription: description
+    };
+  };
 
   useEffect(() => {
     if (!spidaData || !katapultData) {
@@ -874,6 +939,50 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
         console.log('📡 Communication bundles and drops are now properly separated and will not be incorrectly matched together.');
       }
 
+      // ═══ PROPOSED MOVES GLOBAL SUMMARY ═══
+      const allAttachmentsWithMovement = results.flatMap(r => [
+        ...r.katapultExisting,
+        ...r.katapultProposed
+      ]).filter(att => att.mrMove !== undefined && att.moveDirection !== 'none');
+      
+      if (allAttachmentsWithMovement.length > 0) {
+        const movementSummary = {
+          totalMovements: allAttachmentsWithMovement.length,
+          raised: allAttachmentsWithMovement.filter(att => att.moveDirection === 'up').length,
+          lowered: allAttachmentsWithMovement.filter(att => att.moveDirection === 'down').length,
+          byType: {} as Record<string, number>,
+          byOwner: {} as Record<string, number>,
+          averageMovement: 0,
+          maxMovement: 0,
+          minMovement: 0
+        };
+        
+        // Calculate movement statistics
+        const movements = allAttachmentsWithMovement.map(att => Math.abs(att.mrMove!));
+        movementSummary.averageMovement = movements.reduce((a, b) => a + b, 0) / movements.length;
+        movementSummary.maxMovement = Math.max(...movements);
+        movementSummary.minMovement = Math.min(...movements);
+        
+        // Group by type and owner
+        allAttachmentsWithMovement.forEach(att => {
+          movementSummary.byType[att.type] = (movementSummary.byType[att.type] || 0) + 1;
+          movementSummary.byOwner[att.owner] = (movementSummary.byOwner[att.owner] || 0) + 1;
+        });
+        
+        console.log('🔄 PROPOSED MOVES GLOBAL SUMMARY:', movementSummary);
+        console.log('🔄 Movement details by attachment:');
+        allAttachmentsWithMovement.forEach(att => {
+          console.log(`  • ${att.type} (${att.owner}) on pole ${att.poleScid}: ${att.moveDescription}`);
+        });
+        
+        // Add user-friendly summary to warnings
+        if (movementSummary.totalMovements > 0) {
+          addWarning(`Found ${movementSummary.totalMovements} proposed movements: ${movementSummary.raised} raised, ${movementSummary.lowered} lowered. Average movement: ${movementSummary.averageMovement.toFixed(1)}"`);
+        }
+      } else {
+        console.log('🔄 No proposed movements found in Make-Ready data');
+      }
+
     } catch (err) {
       setError('An error occurred during data comparison.');
       console.error('Comparison error:', err);
@@ -1249,6 +1358,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               );
               namingWarnings.push(...equipmentNamingResult.warnings);
 
+              // Process movement/relocation data
+              const moveData = processMrMove(equipment.mr_move);
+
               const equipmentAttachment: Attachment = {
                 type: equipment.equipment_type ? 
                   equipment.equipment_type.charAt(0).toUpperCase() + equipment.equipment_type.slice(1).replace(/_/g, ' ') : 
@@ -1256,10 +1368,18 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 owner: normalizeForComparison(owner),
                 description: equipmentNamingResult.displayName,
                 height: equipment._measured_height * INCHES_TO_METRES,
+                mrMove: moveData.mrMove,
+                moveDirection: moveData.moveDirection,
+                moveDescription: moveData.moveDescription,
               };
 
               // Equipment is generally existing, not proposed
               existingAttachments.push(equipmentAttachment);
+              
+              // Log movement data if present
+              if (moveData.mrMove !== undefined && moveData.moveDirection !== 'none') {
+                console.log(`🔄 Equipment movement found: ${equipment.equipment_type} on ${poleTag} - ${moveData.moveDescription}`);
+              }
             }
           });
         }
@@ -1330,11 +1450,17 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 const guyType = traceInfo._trace_type || traceInfo.cable_type || 'guy';
                 const attachmentType = guyType.toLowerCase().includes('down') ? 'DOWN_GUY' : 'GUY';
                 
+                // Process movement/relocation data for guys
+                const guyMoveData = processMrMove(wireItem.mr_move);
+                
                 const guyAttachment: Attachment = {
                   type: attachmentType,
                   owner: normalizeForComparison(company) || 'cps',
                   description: `${guyType} [Katapult wire-categorized guy]`,
                   height: wireItem._measured_height * INCHES_TO_METRES,
+                  mrMove: guyMoveData.mrMove,
+                  moveDirection: guyMoveData.moveDirection,
+                  moveDescription: guyMoveData.moveDescription,
                 };
 
                 const isProposed = traceInfo?.proposed === true;
@@ -1346,8 +1472,14 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                   company,
                   guyType,
                   height: wireItem._measured_height,
-                  proposed: traceInfo.proposed
+                  proposed: traceInfo.proposed,
+                  moveData: guyMoveData.moveDirection !== 'none' ? guyMoveData.moveDescription : 'No movement'
                 });
+
+                // Log movement data if present
+                if (guyMoveData.mrMove !== undefined && guyMoveData.moveDirection !== 'none') {
+                  console.log(`🔄 Wire-categorized guy movement: ${guyType} (${tagId}) on ${poleTag} - ${guyMoveData.moveDescription}`);
+                }
                 return; // Skip normal wire processing
               }
 
@@ -1361,6 +1493,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               const wireTraceNamingResult = buildKatapultTraceName(traceInfo);
               namingWarnings.push(...wireTraceNamingResult.warnings);
 
+              // Process movement/relocation data
+              const moveData = processMrMove(wireItem.mr_move);
+
               // Name Construction: "{Company} {Cable Type}"
               const attachmentType = `${company} ${cableType}`.trim();
 
@@ -1369,6 +1504,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 owner: normalizeForComparison(company) || 'unknown',
                 description: `${wireTraceNamingResult.displayName} [Katapult wire]`,
                 height: wireItem._measured_height * INCHES_TO_METRES,
+                mrMove: moveData.mrMove,
+                moveDirection: moveData.moveDirection,
+                moveDescription: moveData.moveDescription,
               };
 
               // Fix 1: Use isProposed guard and default to existing
@@ -1381,8 +1519,14 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 company,
                 cableType,
                 height: wireItem._measured_height,
-                proposed: traceInfo.proposed
+                proposed: traceInfo.proposed,
+                moveData: moveData.moveDirection !== 'none' ? moveData.moveDescription : 'No movement'
               });
+
+              // Log movement data if present
+              if (moveData.mrMove !== undefined && moveData.moveDirection !== 'none') {
+                console.log(`🔄 Wire-categorized equipment movement: ${attachmentType} (${tagId}) on ${poleTag} - ${moveData.moveDescription}`);
+              }
             });
           }
 
@@ -1408,11 +1552,17 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               );
               namingWarnings.push(...photoEquipNamingResult.warnings);
 
+              // Process movement/relocation data
+              const moveData = processMrMove(equipItem.mr_move);
+
               const equipmentAttachment: Attachment = {
                 type: photoEquipNamingResult.displayName,
                 owner: normalizeForComparison(company) || ownerFromEquipmentType(equipmentType),
                 description: `${photoEquipNamingResult.displayName} [Katapult equipment]`,
                 height: equipItem._measured_height * INCHES_TO_METRES,
+                mrMove: moveData.mrMove,
+                moveDirection: moveData.moveDirection,
+                moveDescription: moveData.moveDescription,
               };
 
               // Fix 1: Use isProposed guard and default to existing
@@ -1426,8 +1576,14 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 equipmentType,
                 height: equipItem._measured_height,
                 measurementOf: equipItem.measurement_of,
-                proposed: traceInfo.proposed
+                proposed: traceInfo.proposed,
+                moveData: moveData.moveDirection !== 'none' ? moveData.moveDescription : 'No movement'
               });
+
+              // Log movement data if present
+              if (moveData.mrMove !== undefined && moveData.moveDirection !== 'none') {
+                console.log(`🔄 Photo-level equipment movement: ${equipmentType} (${tagId}) on ${poleTag} - ${moveData.moveDescription}`);
+              }
             });
           }
 
@@ -1455,6 +1611,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 ? 'DOWN_GUY'
                 : 'GUY';
 
+              // Process movement/relocation data
+              const moveData = processMrMove(guyItem.mr_move);
+
               const description = `${guyType} [Katapult guying]`;
 
               const guyAttachment: Attachment = {
@@ -1462,6 +1621,9 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 owner: normalizeForComparison(company) || 'cps', // Default to utility
                 description: description,
                 height: guyItem._measured_height * INCHES_TO_METRES,
+                mrMove: moveData.mrMove,
+                moveDirection: moveData.moveDirection,
+                moveDescription: moveData.moveDescription,
               };
 
               // Fix 1: Use isProposed guard and default to existing
@@ -1474,8 +1636,14 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 company,
                 guyType,
                 height: guyItem._measured_height,
-                proposed: traceInfo.proposed
+                proposed: traceInfo.proposed,
+                moveData: moveData.moveDirection !== 'none' ? moveData.moveDescription : 'No movement'
               });
+
+              // Log movement data if present
+              if (moveData.mrMove !== undefined && moveData.moveDirection !== 'none') {
+                console.log(`🔄 Guy movement found: ${guyType} (${tagId}) on ${poleTag} - ${moveData.moveDescription}`);
+              }
             });
           }
         });
