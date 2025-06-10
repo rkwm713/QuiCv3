@@ -1,6 +1,6 @@
 import { Attachment, EnhancedComparison } from './types';
 
-const EPS = 0.01; // height tolerance (ft ≈ ⅛″)
+const EPS = 0.003; // height tolerance (~3mm) - tighter to avoid mis-grouping on crowded cross-arms
 
 export interface CompRow {
   spida: Attachment | null;
@@ -21,30 +21,42 @@ export interface EnhancedGroupRow {
 
 // Group attachments by insulators with wires nested under them
 export const groupByInsulator = (rows: CompRow[]): GroupRow[] => {
-  const parents = rows.filter(r => r.spida?.type.toLowerCase().includes('insulator'));
+  const parents = rows.filter(r => r.spida?.type.toLowerCase().includes('insulator') && !r.spida?.synthetic);
 
   return parents.map(p => {
     const children = rows
-      .filter(r =>
-        r.spida?.type && !r.spida.type.toLowerCase().includes('insulator') &&
-        (
-          // PRIORITY 1: explicit parent-child link (most reliable)
-          r.spida.parentInsulatorId === p.spida!.id ||
-          // PRIORITY 2: height-based fallback ONLY if no explicit link exists
-          // AND we can uniquely identify the parent (no other insulators at same height on same pole)
-          (
-            !r.spida.parentInsulatorId &&
+      .filter(r => {
+        // Skip if not a wire/cable or if it's an insulator
+        if (!r.spida?.type || r.spida.type.toLowerCase().includes('insulator')) return false;
+        
+        // PRIORITY 1: explicit parent-child link (absolute priority)
+        if (r.spida.parentInsulatorId === p.spida!.id) {
+          return true;
+        }
+        
+        // PRIORITY 2: height-based fallback ONLY if:
+        // - No explicit parent link exists
+        // - Same pole 
+        // - Same height within tolerance
+        // - This insulator is the ONLY one at this exact height (avoids crossarm ambiguity)
+        if (!r.spida.parentInsulatorId && 
             r.spida.poleScid === p.spida!.poleScid &&
-            Math.abs(r.spida.height - p.spida!.height) < EPS &&
-            // Ensure this insulator is the ONLY one at this height on this pole
-            rows.filter(otherRow => 
-              otherRow.spida?.type.toLowerCase().includes('insulator') &&
-              otherRow.spida.poleScid === p.spida!.poleScid &&
-              Math.abs(otherRow.spida.height - p.spida!.height) < EPS
-            ).length === 1
-          )
-        )
-      )
+            Math.abs(r.spida.height - p.spida!.height) < EPS) {
+          
+          // Count real insulators at this exact height on this pole (exclude synthetic ones)
+          const insulatorsAtSameHeight = rows.filter(otherRow => 
+            otherRow.spida?.type.toLowerCase().includes('insulator') &&
+            !otherRow.spida.synthetic &&
+            otherRow.spida.poleScid === p.spida!.poleScid &&
+            Math.abs(otherRow.spida.height - p.spida!.height) < EPS
+          );
+          
+          // Only use height fallback if there's exactly one insulator at this height
+          return insulatorsAtSameHeight.length === 1;
+        }
+        
+        return false;
+      })
       .map(r => r.spida!)
       .filter(Boolean);
 
@@ -59,30 +71,37 @@ export const groupByInsulator = (rows: CompRow[]): GroupRow[] => {
 // Enhanced version: Group enhanced comparisons by insulators
 export const groupEnhancedByInsulator = (comparisons: EnhancedComparison[]): EnhancedGroupRow[] => {
   const parents = comparisons.filter(comp => 
-    comp.spida?.type.toLowerCase().includes('insulator') || 
-    comp.katapult?.type.toLowerCase().includes('insulator')
+    (comp.spida?.type.toLowerCase().includes('insulator') && !comp.spida?.synthetic) || 
+    (comp.katapult?.type.toLowerCase().includes('insulator') && !comp.katapult?.synthetic)
   );
 
   return parents.map(parent => {
     const parentHeight = parent.spida?.height || parent.katapult?.height || 0;
     const parentPole = parent.spida?.poleScid || parent.katapult?.poleScid || '';
-    const parentId = parent.spida?.id || parent.katapult?.id || '';
+    const parentSpidaId = parent.spida?.id || '';
+    const parentKatapultId = parent.katapult?.id || '';
 
     const children = comparisons.filter(comp => {
       // Skip if this is the parent itself
       if (comp === parent) return false;
       
-      // Check if child is not an insulator
-      const isChildSpidaInsulator = comp.spida?.type.toLowerCase().includes('insulator');
-      const isChildKatapultInsulator = comp.katapult?.type.toLowerCase().includes('insulator');
+      // Check if child is not a real insulator (exclude synthetic ones)
+      const isChildSpidaInsulator = comp.spida?.type.toLowerCase().includes('insulator') && !comp.spida?.synthetic;
+      const isChildKatapultInsulator = comp.katapult?.type.toLowerCase().includes('insulator') && !comp.katapult?.synthetic;
       if (isChildSpidaInsulator || isChildKatapultInsulator) return false;
       
-      // EXCLUDE communication services - they don't mount on insulators
+      // EXCLUDE communication services - they don't mount on insulators (Enhanced detection)
       const isCommService = 
         comp.spida?.type.toLowerCase().includes('communication') ||
         comp.spida?.type.toLowerCase().includes('service') ||
+        comp.spida?.type.toLowerCase().includes('comm') ||
+        comp.spida?.type.toLowerCase().includes('drop') ||
+        comp.spida?.type.toLowerCase().includes('svc') ||
         comp.katapult?.type.toLowerCase().includes('communication') ||
-        comp.katapult?.type.toLowerCase().includes('service');
+        comp.katapult?.type.toLowerCase().includes('service') ||
+        comp.katapult?.type.toLowerCase().includes('comm') ||
+        comp.katapult?.type.toLowerCase().includes('drop') ||
+        comp.katapult?.type.toLowerCase().includes('svc');
       if (isCommService) return false;
       
       // EXCLUDE pole tops - they should remain ungrouped
@@ -91,22 +110,24 @@ export const groupEnhancedByInsulator = (comparisons: EnhancedComparison[]): Enh
         comp.katapult?.type.toLowerCase().includes('pole top');
       if (isPoleTop) return false;
       
-      // Check for parent-child relationship
-      const childHeight = comp.spida?.height || comp.katapult?.height || 0;
-      const childPole = comp.spida?.poleScid || comp.katapult?.poleScid || '';
+      // PRIORITY 1: Explicit parent link (absolute priority)
+      if (comp.spida?.parentInsulatorId === parentSpidaId || 
+          comp.katapult?.parentInsulatorId === parentKatapultId) {
+        return true;
+      }
       
-      return (
-        // PRIORITY 1: Explicit parent link (SPIDA side) - most reliable
-        comp.spida?.parentInsulatorId === parentId ||
-        // PRIORITY 2: Height-based fallback with strict conditions
-        // Only for actual wires/cables that would realistically be on insulators
-        // AND only if this is the unique insulator at this height
-        (
-          !comp.spida?.parentInsulatorId &&
-          childPole === parentPole &&
-          Math.abs(childHeight - parentHeight) < EPS &&
+      // PRIORITY 2: Height-based fallback with very strict conditions
+      // Only for actual wires/cables that would realistically be on insulators
+      // AND only if this is the unique insulator at this height (avoids crossarm ambiguity)
+      if (!comp.spida?.parentInsulatorId && !comp.katapult?.parentInsulatorId) {
+        const childHeight = comp.spida?.height || comp.katapult?.height || 0;
+        const childPole = comp.spida?.poleScid || comp.katapult?.poleScid || '';
+        
+        // Must be on same pole and same height
+        if (childPole === parentPole && Math.abs(childHeight - parentHeight) < EPS) {
+          
           // Only group actual wires/cables, not equipment or services
-          (
+          const isActualWire = 
             comp.spida?.type.toLowerCase().includes('wire') ||
             comp.spida?.type.toLowerCase().includes('cable') ||
             comp.spida?.type.toLowerCase().includes('neutral') ||
@@ -114,16 +135,24 @@ export const groupEnhancedByInsulator = (comparisons: EnhancedComparison[]): Enh
             comp.katapult?.type.toLowerCase().includes('wire') ||
             comp.katapult?.type.toLowerCase().includes('cable') ||
             comp.katapult?.type.toLowerCase().includes('neutral') ||
-            comp.katapult?.type.toLowerCase().includes('primary')
-          ) &&
-          // Ensure this insulator is the ONLY one at this height on this pole
-          comparisons.filter(otherComp => 
-            (otherComp.spida?.type.toLowerCase().includes('insulator') || otherComp.katapult?.type.toLowerCase().includes('insulator')) &&
+            comp.katapult?.type.toLowerCase().includes('primary');
+            
+          if (!isActualWire) return false;
+          
+          // Count real insulators at this exact height on this pole (exclude synthetic ones)
+          const insulatorsAtSameHeight = comparisons.filter(otherComp => 
+            ((otherComp.spida?.type.toLowerCase().includes('insulator') && !otherComp.spida.synthetic) || 
+             (otherComp.katapult?.type.toLowerCase().includes('insulator') && !otherComp.katapult.synthetic)) &&
             (otherComp.spida?.poleScid === parentPole || otherComp.katapult?.poleScid === parentPole) &&
             Math.abs((otherComp.spida?.height || otherComp.katapult?.height || 0) - parentHeight) < EPS
-          ).length === 1
-        )
-      );
+          );
+          
+          // Only use height fallback if there's exactly one insulator at this height
+          return insulatorsAtSameHeight.length === 1;
+        }
+      }
+      
+      return false;
     });
 
     return {
@@ -140,25 +169,26 @@ export const groupEnhancedByInsulator = (comparisons: EnhancedComparison[]): Enh
 // Remove duplicate flat wires that will be shown as children under insulators
 export const removeDuplicateWires = (rows: CompRow[]): CompRow[] => {
   return rows.filter(r => {
-    if (!r.spida?.type || r.spida.type.toLowerCase().includes('insulator')) return true;
+    // Always keep real insulators (not synthetic ones)
+    if (!r.spida?.type || (r.spida.type.toLowerCase().includes('insulator') && !r.spida.synthetic)) return true;
     
     // Check if this wire will be shown as a child under an insulator
     const linked = r.spida.parentInsulatorId
-      ? // PRIORITY 1: Explicit parent relationship exists
-        rows.some(p =>
-          p.spida?.id === r.spida!.parentInsulatorId)
-      : // PRIORITY 2: Height-based fallback with strict conditions - only if unique insulator at height
-        rows.some(p =>
-          p.spida?.type.toLowerCase().includes('insulator') &&
-          p.spida.poleScid === r.spida!.poleScid &&
-          Math.abs(p.spida.height - r.spida!.height) < EPS &&
-          // Only link if this is the ONLY insulator at this height on this pole
-          rows.filter(otherRow => 
-            otherRow.spida?.type.toLowerCase().includes('insulator') &&
-            otherRow.spida.poleScid === r.spida!.poleScid &&
-            Math.abs(otherRow.spida.height - r.spida!.height) < EPS
-          ).length === 1
-        );
+      ? // PRIORITY 1: Explicit parent relationship exists - absolute priority
+        rows.some(p => p.spida?.id === r.spida!.parentInsulatorId)
+      : // PRIORITY 2: Height-based fallback - only if unique insulator at height (avoids crossarm ambiguity)
+        (() => {
+          // Find real insulators at the same height on the same pole (exclude synthetic ones)
+          const insulatorsAtSameHeight = rows.filter(p =>
+            p.spida?.type.toLowerCase().includes('insulator') &&
+            !p.spida.synthetic &&
+            p.spida.poleScid === r.spida!.poleScid &&
+            Math.abs(p.spida.height - r.spida!.height) < EPS
+          );
+          
+          // Only use height fallback if there's exactly one insulator at this height
+          return insulatorsAtSameHeight.length === 1;
+        })();
     
     return !linked; // drop if it will be shown as child
   });
@@ -167,20 +197,26 @@ export const removeDuplicateWires = (rows: CompRow[]): CompRow[] => {
 // Enhanced version: Remove duplicate wires that will be shown as children
 export const removeEnhancedDuplicateWires = (comparisons: EnhancedComparison[]): EnhancedComparison[] => {
   return comparisons.filter(comp => {
-    // Always keep insulators and pole tops
-    const isSpidaInsulator = comp.spida?.type.toLowerCase().includes('insulator');
-    const isKatapultInsulator = comp.katapult?.type.toLowerCase().includes('insulator');
+    // Always keep real insulators and pole tops (not synthetic ones)
+    const isSpidaInsulator = comp.spida?.type.toLowerCase().includes('insulator') && !comp.spida?.synthetic;
+    const isKatapultInsulator = comp.katapult?.type.toLowerCase().includes('insulator') && !comp.katapult?.synthetic;
     const isPoleTop = comp.spida?.type.toLowerCase().includes('pole top') || 
                      comp.katapult?.type.toLowerCase().includes('pole top');
     
     if (isSpidaInsulator || isKatapultInsulator || isPoleTop) return true;
     
-    // Always keep communication services - they should never be grouped under insulators
+    // Always keep communication services - they should never be grouped under insulators (Enhanced detection)
     const isCommService = 
       comp.spida?.type.toLowerCase().includes('communication') ||
       comp.spida?.type.toLowerCase().includes('service') ||
+      comp.spida?.type.toLowerCase().includes('comm') ||
+      comp.spida?.type.toLowerCase().includes('drop') ||
+      comp.spida?.type.toLowerCase().includes('svc') ||
       comp.katapult?.type.toLowerCase().includes('communication') ||
-      comp.katapult?.type.toLowerCase().includes('service');
+      comp.katapult?.type.toLowerCase().includes('service') ||
+      comp.katapult?.type.toLowerCase().includes('comm') ||
+      comp.katapult?.type.toLowerCase().includes('drop') ||
+      comp.katapult?.type.toLowerCase().includes('svc');
     if (isCommService) return true;
     
     // Always keep equipment types - they should never be grouped under insulators
@@ -206,7 +242,8 @@ export const removeEnhancedDuplicateWires = (comparisons: EnhancedComparison[]):
     // For actual wires/cables, check if they will be shown as children under an insulator
     const parentHeight = comp.spida?.height || comp.katapult?.height || 0;
     const parentPole = comp.spida?.poleScid || comp.katapult?.poleScid || '';
-    const parentId = comp.spida?.parentInsulatorId;
+    const spidaParentId = comp.spida?.parentInsulatorId;
+    const katapultParentId = comp.katapult?.parentInsulatorId;
     
     // Only consider wires/cables for grouping
     const isActualWire = 
@@ -221,22 +258,24 @@ export const removeEnhancedDuplicateWires = (comparisons: EnhancedComparison[]):
     
     if (!isActualWire) return true; // Keep non-wire items that aren't explicitly handled above
     
-    const linked = parentId
-      ? // PRIORITY 1: Explicit parent relationship exists
+    const linked = spidaParentId || katapultParentId
+      ? // PRIORITY 1: Explicit parent relationship exists - absolute priority
         comparisons.some(p =>
-          (p.spida?.id === parentId || p.katapult?.id === parentId))
-      : // PRIORITY 2: Height-based fallback with strict conditions - only if unique insulator at height
-        comparisons.some(p =>
-          (p.spida?.type.toLowerCase().includes('insulator') || p.katapult?.type.toLowerCase().includes('insulator')) &&
-          (p.spida?.poleScid === parentPole || p.katapult?.poleScid === parentPole) &&
-          Math.abs((p.spida?.height || p.katapult?.height || 0) - parentHeight) < EPS &&
-          // Only link if this is the ONLY insulator at this height
-          comparisons.filter(otherComp => 
-            (otherComp.spida?.type.toLowerCase().includes('insulator') || otherComp.katapult?.type.toLowerCase().includes('insulator')) &&
-            (otherComp.spida?.poleScid === parentPole || otherComp.katapult?.poleScid === parentPole) &&
-            Math.abs((otherComp.spida?.height || otherComp.katapult?.height || 0) - parentHeight) < EPS
-          ).length === 1
-        );
+          (p.spida?.id === spidaParentId || p.katapult?.id === spidaParentId) ||
+          (p.spida?.id === katapultParentId || p.katapult?.id === katapultParentId))
+      : // PRIORITY 2: Height-based fallback - only if unique insulator at height (avoids crossarm ambiguity)
+        (() => {
+          // Find real insulators at the same height on the same pole (exclude synthetic ones)
+          const insulatorsAtSameHeight = comparisons.filter(p =>
+            ((p.spida?.type.toLowerCase().includes('insulator') && !p.spida.synthetic) || 
+             (p.katapult?.type.toLowerCase().includes('insulator') && !p.katapult.synthetic)) &&
+            (p.spida?.poleScid === parentPole || p.katapult?.poleScid === parentPole) &&
+            Math.abs((p.spida?.height || p.katapult?.height || 0) - parentHeight) < EPS
+          );
+          
+          // Only use height fallback if there's exactly one insulator at this height
+          return insulatorsAtSameHeight.length === 1;
+        })();
     
     return !linked; // drop if it will be shown as child
   });

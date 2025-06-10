@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { SpidaCalcData, PoleLocationData, Attachment, KatapultData, ComparisonResult, KatapultNode, EnhancedComparison, MatchResult } from './types';
 import PoleLocation from './PoleLocation';
 import ComparisonPole from './ComparisonPole';
+import { buildArmMaps, isInsulatorOnArm, isWireOnArm, getInsulatorArmId, getWireArmId, getArmGroundHeight, verifyCrossArmLogic, type ArmMaps } from './armHelpers';
 
 // Conversion factor from inches (Katapult heights) to metres
 const INCHES_TO_METRES = 0.0254;
@@ -42,6 +43,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
   const [katapultData, setKatapultData] = useState<KatapultData | null>(null);
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [localSpidaFileName, setLocalSpidaFileName] = useState<string | null>(null);
   const [localKatapultFileName, setLocalKatapultFileName] = useState<string | null>(null);
 
@@ -50,13 +52,52 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
   const currentSpidaFileName = externalSpidaFileName || localSpidaFileName;
   const currentKatapultFileName = externalKatapultFileName || localKatapultFileName;
 
+  // Helper to collect warnings for UI display
+  const addWarning = (message: string) => {
+    setWarnings(prev => [...prev, message]);
+  };
+
+  // Helper function to get proper insulator display name from SPIDA data
+  const getInsulatorDisplayName = (insulatorId: string, spidaData: SpidaCalcData): string => {
+    const match = insulatorId.match(/Insulator#(\d+)/);
+    if (!match) return 'Unknown Insulator';
+    
+    const idx = parseInt(match[1], 10) - 1; // Fix off-by-one: SPIDA IDs are 1-based, arrays are 0-based
+    const definition = spidaData.clientData?.insulators?.[idx];
+    
+    if (definition?.size) {
+      return definition.size;
+    }
+    
+    // Fallback to any available alias
+    if (definition?.aliases?.[0]?.size) {
+      return definition.aliases[0].size;
+    }
+    
+    return 'Unknown Insulator';
+  };
+
   // ════════════════════════════════════════════════════════════
   // UNIT CONVERSION HELPER - NORMALIZE ALL HEIGHTS TO METRES
   // ════════════════════════════════════════════════════════════
-  const toMetres = (val: number, unit: 'METRE' | 'FEET' | 'INCH'): number => {
-    if (unit === 'METRE') return val;
-    if (unit === 'FEET') return val * 0.3048;
-    return val * 0.0254; // INCH
+  type Unit = 'METRE' | 'FEET' | 'INCH';
+  
+  // Memoized conversion cache for performance
+  const conversionCache = new Map<string, number>();
+  
+  const toMetres = (val: number, unit: Unit): number => {
+    const cacheKey = `${val}|${unit}`;
+    if (conversionCache.has(cacheKey)) {
+      return conversionCache.get(cacheKey)!;
+    }
+    
+    let result: number;
+    if (unit === 'METRE') result = val;
+    else if (unit === 'FEET') result = val * 0.3048;
+    else result = val * 0.0254; // INCH
+    
+    conversionCache.set(cacheKey, result);
+    return result;
   };
 
   // ════════════════════════════════════════════════════════════
@@ -330,8 +371,14 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
   // Helper to map equipment types for better matching
   const mapEquipmentType = (type: string): string => {
     const lowerType = type.toLowerCase();
-    // Fix 2: Normalize all communication service variations to one canonical type
-    if (lowerType.includes('communication') || lowerType.includes('comm') || lowerType.includes('service') || lowerType.includes('drop')) return 'communication_service';
+    // Enhanced communication service detection (Fix 3)
+    if (lowerType.includes('communication') || 
+        lowerType.includes('comm') || 
+        lowerType.includes('service') || 
+        lowerType.includes('drop') ||
+        lowerType.includes('svc') ||
+        lowerType === 'comm svc' ||
+        lowerType === 'drop-wire') return 'communication_service';
     if (lowerType.includes('drip') || lowerType.includes('loop')) return 'drip_loop';
     // Handle canonical guy types from Katapult and normalize SPIDA guy types
     if (lowerType.includes('guy') || lowerType === 'guy' || lowerType === 'down_guy') return 'guy'; 
@@ -380,10 +427,12 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
   useEffect(() => {
     if (!spidaData || !katapultData) {
       setComparisonResults([]); // Clear results if files are missing
+      setWarnings([]); // Clear warnings
       return;
     }
 
     try {
+      setWarnings([]); // Clear previous warnings
       const katapultMap = parseKatapultData(katapultData);
       
       console.log('Katapult parsing complete:', {
@@ -602,25 +651,30 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           const { structure } = design;
           const attachments: Attachment[] = [];
           
-          // Build cross-arm map: armId → absolute ground height (m)
-          const armGroundHeight = new Map<string, number>();
+          // Build all cross-arm relationship maps once (much cleaner!)
+          const armMaps = buildArmMaps(structure);
+          
+          // Verify cross-arm logic is working correctly (debug only)
+          // verifyCrossArmLogic(structure, armMaps, location.label);
+          
+          // Add cross-arms themselves to attachments array
           if (structure.crossArms) {
             structure.crossArms.forEach((arm: any) => {
-              const rawHeight = arm.attachmentHeight?.value || 0;
-              const heightInMetres = toMetres(rawHeight, arm.attachmentHeight?.unit ?? 'METRE');
-              armGroundHeight.set(arm.id, heightInMetres);
-            });
-          }
-
-          // Tag every arm-mounted insulator with its arm ID
-          const insulatorToArm = new Map<string, string>();
-          if (structure.crossArms) {
-            structure.crossArms.forEach((arm: any) => {
-              if (arm.insulators) {
-                arm.insulators.forEach((insId: string) => {
-                  insulatorToArm.set(insId, arm.id);
-                });
+              const heightInMetres = getArmGroundHeight(arm.id, armMaps);
+              
+              // Collect warning if no height data available
+              if (heightInMetres === 0) {
+                addWarning(`Cross-arm ${arm.id} on pole ${location.label} has no height data`);
               }
+              
+              attachments.push({
+                id: arm.id,
+                type: 'Cross-arm',
+                owner: structure.pole?.owner?.id ?? 'CPS',
+                description: arm.clientItem?.size ?? 'Cross-arm',
+                height: heightInMetres || 0,
+                poleScid: location.label
+              });
             });
           }
 
@@ -630,16 +684,18 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           
           if (structure.insulators) {
             structure.insulators.forEach((ins: any) => {
-              const armId = insulatorToArm.get(ins.id);
+              const armId = getInsulatorArmId(ins.id, armMaps);
               let groundHeight: number;
               
               if (armId) {
-                // Cross-arm mounted: use arm's absolute ground height only (ignore horizontal offset)
-                groundHeight = armGroundHeight.get(armId)!;
+                // Cross-arm mounted - include insulator's vertical offset
+                const armHt = getArmGroundHeight(armId, armMaps)!;
+                const extra = toMetres(ins.offset?.value ?? 0, (ins.offset?.unit ?? 'METRE') as Unit);
+                groundHeight = armHt + extra; // use the real vertical drop
               } else {
                 // Pole-top or other mounting: use insulator's absolute height
                 const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
-                groundHeight = toMetres(rawHeight, ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE');
+                groundHeight = toMetres(rawHeight, (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit);
               }
               
               insulatorGroundHeight.set(ins.id, groundHeight);
@@ -657,12 +713,17 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
             structure.wires.forEach((w: any) => {
               // Use insulator ground height if wire is connected to an insulator, otherwise use wire height
               const rawHeight = wireToInsulatorHeight.get(w.id) ?? w.attachmentHeight.value;
-              const displayHeight = toMetres(rawHeight, w.attachmentHeight.unit ?? 'METRE');
+              const displayHeight = toMetres(rawHeight, (w.attachmentHeight.unit ?? 'METRE') as Unit);
               const isConnectedToInsulator = wireToInsulatorHeight.has(w.id);
               
-              // Check if this wire is on a cross-arm (its insulator is arm-mounted)
-              const connectedInsulator = structure.insulators?.find((ins: any) => ins.wires?.includes(w.id));
-              const isOnCrossArm = connectedInsulator && insulatorToArm.has(connectedInsulator.id);
+              // Use clean helper functions to determine cross-arm relationships
+              const parentId = armMaps.wireToInsulatorId.get(w.id);
+              const isOnCrossArm = isWireOnArm(w.id, armMaps);
+              
+              // Enhanced communication service detection
+              const isCommService = w.usageGroup?.toLowerCase().includes('comm') || 
+                                  w.usageGroup?.toLowerCase().includes('service') ||
+                                  w.usageGroup?.toLowerCase().includes('drop');
               
               attachments.push({ 
                 id: w.id || `wire-${attachments.length}`,
@@ -670,7 +731,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 owner: w.owner.id, 
                 description: `${w.clientItem.size}${isConnectedToInsulator ? ' (at insulator height)' : ''}${isOnCrossArm ? ' 🔧' : ''}`, 
                 height: displayHeight,
-                parentInsulatorId: connectedInsulator?.id,
+                parentInsulatorId: parentId,
                 poleScid: location.label
               });
             });
@@ -681,7 +742,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               type: 'Guy', 
               owner: g.owner.id, 
               description: g.clientItem.size, 
-              height: toMetres(g.attachmentHeight.value, g.attachmentHeight.unit ?? 'METRE'),
+              height: toMetres(g.attachmentHeight.value, (g.attachmentHeight.unit ?? 'METRE') as Unit),
               poleScid: location.label
             }));
           }
@@ -691,14 +752,14 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               type: equip.clientItem.type, 
               owner: equip.owner.id, 
               description: equip.clientItem.size, 
-              height: toMetres(equip.attachmentHeight.value, equip.attachmentHeight.unit ?? 'METRE'),
+              height: toMetres(equip.attachmentHeight.value, (equip.attachmentHeight.unit ?? 'METRE') as Unit),
               poleScid: location.label
             }));
           }
           
           // Add pole top measurement from SPIDA structure.pole.agl
           if (structure.pole?.agl?.value) {
-            const poleTopHeight = toMetres(structure.pole.agl.value, structure.pole.agl.unit ?? 'METRE');
+            const poleTopHeight = toMetres(structure.pole.agl.value, (structure.pole.agl.unit ?? 'METRE') as Unit);
             attachments.push({
               id: `pole-top-spida-${location.label}`,
               type: 'Pole Top',
@@ -720,30 +781,20 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 }
               }
 
-              // Extract insulator name and size from SPIDACalc structure
+              // Extract insulator name and size from SPIDACalc structure using helper
               const insulatorName = ins.clientItem || 'Unknown Insulator';
-              
-              // Look up the catalog description from clientData.insulators array
-              let insulatorSize = '';
-              if (ins.id && data.clientData?.insulators) {
-                const idMatch = ins.id.match(/Insulator#(\d+)/);
-                if (idMatch) {
-                  const defIndex = Number(idMatch[1]);
-                  const definition = data.clientData.insulators[defIndex];
-                  insulatorSize = definition?.size || '';
-                }
-              }
+              const insulatorSize = getInsulatorDisplayName(ins.id, data);
 
               // Check if this insulator is cross-arm mounted
-              const isOnCrossArm = insulatorToArm.has(ins.id);
+              const isOnCrossArm = isInsulatorOnArm(ins.id, armMaps);
               const rawHeight = insulatorGroundHeight.get(ins.id) ?? (ins.offset?.value ?? ins.attachmentHeight?.value ?? 0);
-              const finalHeight = toMetres(rawHeight, ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE');
+              const finalHeight = toMetres(rawHeight, (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit);
               
               attachments.push({
                 id: ins.id || `insulator-${attachments.length}`,
                 type: `Insulator (${insulatorName})`,
                 owner: ownerId,
-                description: `${insulatorSize || insulatorName}${isOnCrossArm ? ' 🔧' : ''}`,
+                description: `${insulatorSize !== 'Unknown Insulator' ? insulatorSize : insulatorName}${isOnCrossArm ? ' 🔧' : ''}`,
                 height: finalHeight,
                 poleScid: location.label
               });
@@ -830,25 +881,30 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               height: wire._measured_height * INCHES_TO_METRES,
             };
 
-            // For wires that are not guys, also create a synthetic insulator
-            // This aligns with SPIDA which always provides discrete insulator objects
-            const shouldCreateSyntheticInsulator = 
+            // For wires that are not guys, create a synthetic wire-based attachment
+            // Use "Wire" type instead of "Insulator" to avoid confusion with real insulators
+            const shouldCreateSyntheticWireGroup = 
               attachmentType !== 'Guy' &&
               traceInfo._trace_type !== 'down_guy';
 
-            if (shouldCreateSyntheticInsulator) {
-              const syntheticInsulator: Attachment = {
-                type: `Insulator (${attachmentType || 'Unknown'})`,
+            if (shouldCreateSyntheticWireGroup) {
+              const syntheticWireId = `syn-wire-${wire._trace}`;
+              const syntheticWireGroup: Attachment = {
+                id: syntheticWireId,
+                type: `Wire (${attachmentType || 'Unknown'})`, // Changed from "Insulator" to "Wire"
                 owner: traceInfo.company || 'Unknown',
-                description: `Synthetic - derived from ${traceInfo.label || wire._trace}`,
+                description: `Wire group - ${traceInfo.label || wire._trace}`,
                 height: wire._measured_height * INCHES_TO_METRES,
                 synthetic: true,
               };
 
+              // Link the wire back to its synthetic wire group
+              wireAttachment.parentInsulatorId = syntheticWireId;
+
               if (traceInfo.proposed === true) {
-                proposedAttachments.push(syntheticInsulator);
+                proposedAttachments.push(syntheticWireGroup);
               } else {
-                existingAttachments.push(syntheticInsulator);
+                existingAttachments.push(syntheticWireGroup);
               }
             }
 
@@ -1277,6 +1333,23 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
       )}
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      
+      {warnings.length > 0 && (
+        <div style={{ 
+          margin: '16px 0', 
+          padding: '12px', 
+          backgroundColor: '#fef3c7', 
+          border: '1px solid #f59e0b',
+          borderRadius: '8px'
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', color: '#d97706' }}>⚠️ Parsing Warnings</h4>
+          <ul style={{ margin: 0, paddingLeft: '20px' }}>
+            {warnings.map((warning, idx) => (
+              <li key={idx} style={{ color: '#92400e', fontSize: '0.9em' }}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {spidaData && (
         <div style={{ marginTop: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>

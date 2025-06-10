@@ -265,10 +265,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const navigationItems = [
     { id: 'data-management' as const, name: 'Data Management', icon: <DataManagementIcon />, description: 'Load data, run analysis, and export results' },
     { id: 'table' as const, name: 'Katapult Attribute Check', icon: <TableIcon />, description: 'Verify Pole Numbers, SCIDs, Specs, and Loading %' },
+    { id: 'qc' as const, name: 'SPIDA QC Tool', icon: <QCIcon />, description: 'Analyze and compare pole attachments from SPIDAcalc data' },
     { id: 'coversheet' as const, name: 'CoverSheet', icon: <CoverSheetIcon />, description: 'Generate a PE cover sheet from SPIDAcalc data' },
     { id: 'map' as const, name: 'Map View', icon: <MapIcon />, description: 'Geographic visualization' },
     { id: 'statistics' as const, name: 'Statistics', icon: <StatisticsIcon />, description: 'Match statistics & insights' },
-    { id: 'qc' as const, name: 'SPIDA QC Tool', icon: <QCIcon />, description: 'Analyze and compare pole attachments from SPIDAcalc data' },
     { id: 'analytics' as const, name: 'Analytics', icon: <AnalyticsIcon />, description: 'AI-powered data insights' },
     { id: 'demo' as const, name: 'Demo & Tutorial', icon: <BookOpenIcon />, description: 'Learn how to use QuiC' },
     { id: 'make-ready' as const, name: 'Make-Ready Report', icon: <TableIcon />, description: 'Generate Make-Ready Excel report' },
