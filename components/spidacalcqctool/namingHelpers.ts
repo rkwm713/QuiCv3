@@ -349,24 +349,36 @@ export const buildKatapultGuyName = (
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Handle communication bundles and messengers separately
+ * Handle communication bundles and messengers separately from drops and services
  */
 export const buildCommunicationDescription = (wire: SpidaAttachment): NamingResult => {
   const warnings: string[] = [];
   const baseName = safeGetName(wire);
   const usageGroup = wire.usageGroup || '';
+  const lowerUsageGroup = usageGroup.toLowerCase();
   
   let description = baseName;
+  let category = 'communication_generic';
   
-  // Distinguish between bundle components
-  if (usageGroup.includes('BUNDLE')) {
-    description += ' (Bundle Messenger)';
-  } else if (usageGroup.includes('SERVICE')) {
+  // Distinguish between different communication infrastructure types
+  if (lowerUsageGroup.includes('bundle') || lowerUsageGroup.includes('messenger') || 
+      baseName.toLowerCase().includes('bundle') || baseName.toLowerCase().includes('messenger')) {
+    description += ' (Communication Bundle)';
+    category = 'communication_bundle';
+  } else if (lowerUsageGroup.includes('service') || lowerUsageGroup.includes('drop') ||
+             baseName.toLowerCase().includes('drop') || baseName.toLowerCase().includes('service')) {
     description += ' (Service Drop)';
+    category = 'communication_drop';
+  } else if (lowerUsageGroup.includes('cable') && !lowerUsageGroup.includes('drop')) {
+    description += ' (Communication Cable)';
+    category = 'communication_bundle'; // Cables are typically backbone
+  } else {
+    description += ' (Communication)';
+    warnings.push(`Could not determine if communication attachment is bundle or drop - using generic category`);
   }
   
   const owner = safeGetOwner(wire);
-  const compositeKey = `${owner}|${usageGroup}|${baseName}`;
+  const compositeKey = `${owner}|${category}|${baseName}`;
   
   return {
     displayName: description,

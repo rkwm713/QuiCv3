@@ -171,7 +171,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
         <tr>
           <th style={styles.thCondensed}>SPIDA Attachment</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Measured (SPIDA) Height</th>
-          <th style={{...styles.thCondensed, textAlign: 'center'}}>Proposed Height</th>
+          <th style={{...styles.thCondensed, textAlign: 'center'}}>SPIDA Recommended Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Katapult Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Difference</th>
         </tr>
@@ -245,7 +245,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
                 )}
               </td>
 
-              {/* Proposed height (from Recommended design) */}
+              {/* SPIDA Recommended height */}
               <td style={{ ...styles.tdParent, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
                 {group.insulator.spida ? (
                   formatHeightFtIn(group.insulator.spida.height)
@@ -336,7 +336,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
                   )}
                 </td>
 
-                {/* Proposed height (from Recommended design) */}
+                {/* SPIDA Recommended height */}
                 <td style={{ ...styles.tdChild, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.2em', fontWeight: 500 }}>
                   {wireComp.spida ? (
                     formatHeightFtIn(wireComp.spida.height)
@@ -453,7 +453,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
               )}
             </td>
 
-            {/* Proposed height (from Recommended design) */}
+            {/* SPIDA Recommended height */}
             <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
               {spida ? (
                 formatHeightFtIn(spida.height)

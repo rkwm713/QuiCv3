@@ -374,14 +374,25 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
   // Helper to map equipment types for better matching
   const mapEquipmentType = (type: string): string => {
     const lowerType = type.toLowerCase();
-    // Enhanced communication service detection (Fix 3)
-    if (lowerType.includes('communication') || 
-        lowerType.includes('comm') || 
-        lowerType.includes('service') || 
-        lowerType.includes('drop') ||
-        lowerType.includes('svc') ||
-        lowerType === 'comm svc' ||
-        lowerType === 'drop-wire') return 'communication_service';
+    
+    // Distinguish between different communication infrastructure types
+    if (lowerType.includes('bundle') || lowerType.includes('messenger')) {
+      return 'communication_bundle'; // Backbone infrastructure
+    }
+    if (lowerType.includes('drop') || lowerType.includes('service') || 
+        lowerType.includes('svc') || lowerType === 'comm svc' || 
+        lowerType === 'drop-wire') {
+      return 'communication_drop'; // Customer connections
+    }
+    if (lowerType.includes('communication') || lowerType.includes('comm')) {
+      // Generic communication - check for more specific indicators
+      if (lowerType.includes('cable') && !lowerType.includes('drop')) {
+        return 'communication_bundle'; // Likely backbone cable
+      }
+      return 'communication_generic'; // Unknown communication type
+    }
+    
+    // Other equipment types
     if (lowerType.includes('drip') || lowerType.includes('loop')) return 'drip_loop';
     // Handle canonical guy types from Katapult and normalize SPIDA guy types
     if (lowerType.includes('guy') || lowerType === 'guy' || lowerType === 'down_guy') return 'guy'; 
@@ -404,6 +415,17 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
     const aMappedType = mapEquipmentType(aType);
     const bMappedType = mapEquipmentType(bType);
     
+    // Log communication attachment comparisons for debugging
+    if (aMappedType.includes('communication') || bMappedType.includes('communication')) {
+      console.log(`📡 Communication attachment comparison:`, {
+        spida: { type: aType, mappedType: aMappedType, owner: normalizedAOwner, description: a.description },
+        katapult: { type: bType, mappedType: bMappedType, owner: normalizedBOwner, description: b.description },
+        sameOwner,
+        sameType: aMappedType === bMappedType,
+        wouldMatch: sameOwner && aMappedType === bMappedType
+      });
+    }
+    
     const sameType = aType.includes(bType) || bType.includes(aType) ||
                     aMappedType === bMappedType ||
                     (aType.includes('insulator') && (bType.includes('wire') || bType.includes('cable'))) ||
@@ -414,14 +436,22 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
   // Helper to check if two attachments have the same height (within tolerance)
   const sameHeight = (a: Attachment, b: Attachment): boolean => {
-    // Fix 4: Dynamic height tolerance for communication services (convert feet to metres)
+    // Dynamic height tolerance based on attachment type
     const aType = mapEquipmentType(a.type);
     const bType = mapEquipmentType(b.type);
     const ftToM = (ft: number) => ft * 0.3048;
+    
+    // Higher tolerance for communication drops (customer connections can vary more)
+    // Lower tolerance for communication bundles (backbone infrastructure is more precisely placed)
     const HEIGHT_TOLERANCE_M =
-      (aType === 'communication_service' || bType === 'communication_service')
-        ? ftToM(1.0)
-        : ftToM(0.5);
+      (aType === 'communication_drop' || bType === 'communication_drop')
+        ? ftToM(1.0) // 1 foot tolerance for drops
+        : (aType === 'communication_bundle' || bType === 'communication_bundle')
+        ? ftToM(0.5) // 6 inch tolerance for bundles
+        : (aType === 'communication_generic' || bType === 'communication_generic')
+        ? ftToM(1.0) // 1 foot tolerance for unknown communication types
+        : ftToM(0.5); // 6 inch tolerance for other equipment
+        
     return Math.abs(a.height - b.height) < HEIGHT_TOLERANCE_M;
   };
 
@@ -634,6 +664,43 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           allMatch: allGuysMatch
         });
 
+        // ═══ COMMUNICATION ATTACHMENT SUMMARY ═══
+        const allAttachments = [...spidaMeasured, ...spidaRecommended, ...katapultPoleData.existing, ...katapultPoleData.proposed];
+        const commAttachments = allAttachments.filter(att => {
+          const mappedType = mapEquipmentType(att.type);
+          return mappedType.includes('communication');
+        });
+        
+        const commSummary = {
+          total: commAttachments.length,
+          bundles: commAttachments.filter(att => mapEquipmentType(att.type) === 'communication_bundle').length,
+          drops: commAttachments.filter(att => mapEquipmentType(att.type) === 'communication_drop').length,
+          generic: commAttachments.filter(att => mapEquipmentType(att.type) === 'communication_generic').length,
+          bySource: {
+            spidaMeasured: spidaMeasured.filter(att => mapEquipmentType(att.type).includes('communication')).length,
+            spidaRecommended: spidaRecommended.filter(att => mapEquipmentType(att.type).includes('communication')).length,
+            katapultExisting: katapultPoleData.existing.filter(att => mapEquipmentType(att.type).includes('communication')).length,
+            katapultProposed: katapultPoleData.proposed.filter(att => mapEquipmentType(att.type).includes('communication')).length
+          }
+        };
+        
+        if (commSummary.total > 0) {
+          console.log(`📡 Pole ${spidaPole.label} communication attachment summary:`, commSummary);
+          
+          // Add user-friendly warning about communication attachment separation
+          if (commSummary.bundles > 0 && commSummary.drops > 0) {
+            addWarning(`Pole ${spidaPole.label}: Found ${commSummary.bundles} communication bundle(s) and ${commSummary.drops} communication drop(s). These are treated as different types and will not be matched together.`);
+          } else if (commSummary.bundles > 0) {
+            console.log(`📡 Pole ${spidaPole.label}: Found ${commSummary.bundles} communication bundle(s) (backbone infrastructure)`);
+          } else if (commSummary.drops > 0) {
+            console.log(`📡 Pole ${spidaPole.label}: Found ${commSummary.drops} communication drop(s) (customer connections)`);
+          }
+          
+          if (commSummary.generic > 0) {
+            addWarning(`Pole ${spidaPole.label}: Found ${commSummary.generic} communication attachment(s) that could not be categorized as bundles or drops. Check the descriptions for accuracy.`);
+          }
+        }
+
         // ═══ CROSS-ARM MAPPING ═══
         let crossArmMatches: Array<{
           spidaGroup: import('./crossArmMapper').CrossArmGroup | null;
@@ -782,6 +849,29 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
       if (totalGuys > 0) {
         console.log(`📋 Guy matching result: ${allGuysMatch ? 'PASS ✅' : 'FAIL ❌'} (${matchedGuys}/${totalGuys} matched)`);
+      }
+
+      // ═══ COMMUNICATION ATTACHMENT GLOBAL SUMMARY ═══
+      const allCommAttachments = results.flatMap(r => [
+        ...r.spidaMeasured,
+        ...r.spidaRecommended,
+        ...r.katapultExisting,
+        ...r.katapultProposed
+      ]).filter(att => {
+        const mappedType = mapEquipmentType(att.type);
+        return mappedType.includes('communication');
+      });
+      
+      if (allCommAttachments.length > 0) {
+        const globalCommSummary = {
+          total: allCommAttachments.length,
+          bundles: allCommAttachments.filter(att => mapEquipmentType(att.type) === 'communication_bundle').length,
+          drops: allCommAttachments.filter(att => mapEquipmentType(att.type) === 'communication_drop').length,
+          generic: allCommAttachments.filter(att => mapEquipmentType(att.type) === 'communication_generic').length
+        };
+        
+        console.log('📡 COMMUNICATION ATTACHMENT GLOBAL SUMMARY:', globalCommSummary);
+        console.log('📡 Communication bundles and drops are now properly separated and will not be incorrectly matched together.');
       }
 
     } catch (err) {
