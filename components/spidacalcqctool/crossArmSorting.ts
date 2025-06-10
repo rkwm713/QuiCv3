@@ -39,7 +39,15 @@ export const sortWithCrossArmHierarchy = (attachments: Attachment[]): Attachment
         result.push(crossArm);
         processedCrossArms.add(attachment.parentCrossArmId);
         
-        console.log(`🔧 Placed cross-arm ${crossArm.id} before insulator ${attachment.id} at height ${attachment.height.toFixed(2)}m`);
+        console.log(`🔧 Placed cross-arm ${crossArm.id} (${crossArm.height.toFixed(3)}m) before insulator ${attachment.id} (${attachment.height.toFixed(3)}m)`);
+        
+        // Verify height consistency
+        const heightDiff = Math.abs(crossArm.height - attachment.height);
+        if (heightDiff > 0.001) { // Allow for small floating point differences
+          console.warn(`⚠️ Height mismatch: cross-arm ${crossArm.id} at ${crossArm.height.toFixed(3)}m vs insulator ${attachment.id} at ${attachment.height.toFixed(3)}m (diff: ${heightDiff.toFixed(3)}m)`);
+        } else {
+          console.log(`✅ Height consistency verified for cross-arm ${crossArm.id} and insulator ${attachment.id}`);
+        }
       }
     }
     

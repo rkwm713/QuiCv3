@@ -830,12 +830,31 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           // Build cross-arm ID set for safe cross-arm detection
           const crossArmIds = buildCrossArmIdSet(structure);
           
+          // Build cross-arm to insulator mapping and cross-arm heights FIRST
+          const crossArmHeights = new Map<string, number>();
+          const insulatorToCrossArmId = new Map<string, string>();
+          if (structure.crossArms) {
+            structure.crossArms.forEach((arm: any) => {
+              // Calculate cross-arm height
+              const rawHeight = arm.attachmentHeight?.value ?? arm.offset?.value ?? 0;
+              const unit = (arm.attachmentHeight?.unit ?? arm.offset?.unit ?? 'METRE') as Unit;
+              const armHeightInMetres = toMetres(rawHeight, unit);
+              crossArmHeights.set(arm.id, armHeightInMetres);
+              
+              // Map insulators to this cross-arm
+              if (Array.isArray(arm.insulators)) {
+                arm.insulators.forEach((insulatorId: string) => {
+                  insulatorToCrossArmId.set(insulatorId, arm.id);
+                });
+              }
+            });
+          }
+          
           // Add cross-arms as standalone attachments
           if (structure.crossArms) {
             structure.crossArms.forEach((arm: any) => {
-              const rawHeight = arm.attachmentHeight?.value ?? arm.offset?.value ?? 0;
-              const unit = (arm.attachmentHeight?.unit ?? arm.offset?.unit ?? 'METRE') as Unit;
-              const heightInMetres = toMetres(rawHeight, unit);
+              // Use the already calculated cross-arm height for consistency
+              const heightInMetres = crossArmHeights.get(arm.id) || 0;
               
               // Collect warning if no height data available
               if (heightInMetres === 0) {
@@ -845,6 +864,8 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               // Use robust naming helper
               const namingResult = buildCrossArmDescription(arm);
               namingWarnings.push(...namingResult.warnings);
+              
+              console.log(`🔧 Cross-arm ${arm.id} final height: ${heightInMetres.toFixed(3)}m`);
               
               // Add cross-arms as standalone elements
               attachments.push({
@@ -861,25 +882,24 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
           // Calculate heights for insulators and wires with parent-child relationships
           const wireToInsulatorHeight = new Map<string, number>();
           const wireToInsulatorId = new Map<string, string>();
-          const insulatorToCrossArmId = new Map<string, string>();
-          
-          // Build cross-arm to insulator mapping
-          if (structure.crossArms) {
-            structure.crossArms.forEach((arm: any) => {
-              if (Array.isArray(arm.insulators)) {
-                arm.insulators.forEach((insulatorId: string) => {
-                  insulatorToCrossArmId.set(insulatorId, arm.id);
-                });
-              }
-            });
-          }
           
           if (structure.insulators) {
             structure.insulators.forEach((ins: any) => {
-              // Use insulator's direct height without cross-arm calculations
-              const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
-              const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
-              const heightInMetres = toMetres(rawHeight, unit);
+              // Check if this insulator is on a cross-arm
+              const parentCrossArmId = insulatorToCrossArmId.get(ins.id);
+              let heightInMetres: number;
+              
+              if (parentCrossArmId && crossArmHeights.has(parentCrossArmId)) {
+                // Use cross-arm height for insulators mounted on cross-arms
+                heightInMetres = crossArmHeights.get(parentCrossArmId)!;
+                console.log(`🔧 Insulator ${ins.id} using cross-arm ${parentCrossArmId} height: ${heightInMetres.toFixed(3)}m`);
+              } else {
+                // Use insulator's direct height for pole-mounted insulators
+                const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
+                const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
+                heightInMetres = toMetres(rawHeight, unit);
+                console.log(`🔧 Insulator ${ins.id} using direct height: ${heightInMetres.toFixed(3)}m`);
+              }
               
               // Map wires to this insulator's height and ID for parent-child relationships
               if (Array.isArray(ins.wires)) {
@@ -899,11 +919,13 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               let displayHeight: number;
               
               if (insulatorHeight !== undefined) {
-                // Use insulator height (already converted to metres)
+                // Use insulator height (which may be cross-arm height if insulator is on cross-arm)
                 displayHeight = insulatorHeight;
+                console.log(`🔧 Wire ${w.id} using insulator ${parentInsulatorId} height: ${displayHeight.toFixed(3)}m`);
               } else {
                 // Use wire's own height and convert to metres
                 displayHeight = toMetres(w.attachmentHeight.value, (w.attachmentHeight.unit ?? 'METRE') as Unit);
+                console.log(`🔧 Wire ${w.id} using direct height: ${displayHeight.toFixed(3)}m`);
               }
               
               // Enhanced communication service detection
@@ -991,13 +1013,21 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
               const namingResult = buildInsulatorDescription(ins, crossArmIds);
               namingWarnings.push(...namingResult.warnings);
 
-              // Use direct insulator height without cross-arm calculations
-              const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
-              const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
-              const finalHeight = toMetres(rawHeight, unit);
-              
-              // Check if this insulator is on a cross-arm
+              // Check if this insulator is on a cross-arm and use appropriate height
               const parentCrossArmId = insulatorToCrossArmId.get(ins.id);
+              let finalHeight: number;
+              
+              if (parentCrossArmId && crossArmHeights.has(parentCrossArmId)) {
+                // Use cross-arm height for insulators mounted on cross-arms
+                finalHeight = crossArmHeights.get(parentCrossArmId)!;
+                console.log(`🔧 Insulator ${ins.id} final height from cross-arm ${parentCrossArmId}: ${finalHeight.toFixed(3)}m`);
+              } else {
+                // Use direct insulator height for pole-mounted insulators
+                const rawHeight = ins.offset?.value ?? ins.attachmentHeight?.value ?? 0;
+                const unit = (ins.attachmentHeight?.unit ?? ins.offset?.unit ?? 'METRE') as Unit;
+                finalHeight = toMetres(rawHeight, unit);
+                console.log(`🔧 Insulator ${ins.id} final height from direct measurement: ${finalHeight.toFixed(3)}m`);
+              }
               
               attachments.push({
                 id: ins.id || `insulator-${attachments.length}`,
@@ -1005,7 +1035,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
                 owner: ownerId,
                 description: namingResult.displayName,
                 height: finalHeight,
-                parentCrossArmId: parentCrossArmId, // NEW: Link to parent cross-arm
+                parentCrossArmId: parentCrossArmId, // Link to parent cross-arm
                 poleScid: location.label
               });
             });
