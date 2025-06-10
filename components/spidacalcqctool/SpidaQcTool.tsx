@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { SpidaCalcData, PoleLocationData, Attachment, KatapultData, ComparisonResult, KatapultNode, EnhancedComparison, MatchResult, AttachmentPoint, AttachmentPointComparison } from './types';
 import PoleLocation from './PoleLocation';
 import ComparisonPole from './ComparisonPole';
+import { downloadExcelReport } from './excelExport';
 import { buildKatapultAttachmentPoints, compareAttachmentPoints } from './attachmentPointHelpers';
 import { 
   extractSpidaCrossArmWiring, 
@@ -1837,9 +1838,39 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
 
       {spidaData && (
         <div style={{ marginTop: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
-          <h3>Project Overview</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0 }}>Project Overview</h3>
+            {comparisonResults.length > 0 && (
+              <button
+                onClick={() => downloadExcelReport(comparisonResults)}
+                style={{
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+                title={`Export comparison data for ${comparisonResults.length} pole(s) to Excel`}
+              >
+                📊 Export to Excel
+              </button>
+            )}
+          </div>
           <p><strong>SPIDA Project:</strong> {spidaData.label}</p>
           <p><strong>Katapult Project:</strong> {katapultData?.name || 'N/A'}</p>
+          {comparisonResults.length > 0 && (
+            <p><strong>Poles Analyzed:</strong> {comparisonResults.length}</p>
+          )}
         </div>
       )}
 
