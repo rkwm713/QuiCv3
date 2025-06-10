@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { SpidaCalcData, PoleLocationData, Attachment, KatapultData, ComparisonResult, KatapultNode, EnhancedComparison, MatchResult, AttachmentPoint, AttachmentPointComparison } from './types';
 import PoleLocation from './PoleLocation';
 import ComparisonPole from './ComparisonPole';
-import { buildSpidaAttachmentPoints, buildKatapultAttachmentPoints, compareAttachmentPoints } from './attachmentPointHelpers';
+import { buildKatapultAttachmentPoints, compareAttachmentPoints } from './attachmentPointHelpers';
 import { 
   buildWireDescription, 
   buildInsulatorDescription, 

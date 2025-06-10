@@ -44,14 +44,14 @@ const hashGroupKey = (key: string): string => {
 // Extract wire type/phase for grouping
 const getWirePhase = (wire: Attachment): string => {
   const type = wire.type.toLowerCase();
-  const desc = wire.description.toLowerCase();
+  const description = wire.description.toLowerCase();
   
   // Try to extract phase information
-  if (type.includes('primary') || desc.includes('primary')) return 'primary';
-  if (type.includes('neutral') || desc.includes('neutral')) return 'neutral';
-  if (type.includes('secondary') || desc.includes('secondary')) return 'secondary';
-  if (type.includes('service') || desc.includes('service')) return 'service';
-  if (type.includes('communication') || desc.includes('comm')) return 'communication';
+  if (type.includes('primary') || description.includes('primary')) return 'primary';
+  if (type.includes('neutral') || description.includes('neutral')) return 'neutral';
+  if (type.includes('secondary') || description.includes('secondary')) return 'secondary';
+  if (type.includes('service') || description.includes('service')) return 'service';
+  if (type.includes('communication') || description.includes('comm')) return 'communication';
   
   // Fall back to the wire type itself
   return wire.type;
@@ -138,7 +138,6 @@ export const buildKatapultAttachmentPoints = (
   // Filter out wires that should not be grouped (equipment, guys, etc.)
   const groupableWires = wires.filter(wire => {
     const type = wire.type.toLowerCase();
-    const desc = wire.description.toLowerCase();
     
     // Skip guys, equipment, pole tops
     if (type.includes('guy') || type.includes('equipment') || type.includes('pole top')) {

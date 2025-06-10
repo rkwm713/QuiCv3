@@ -530,7 +530,7 @@ function styleWorksheet(ws: ExcelJS.Worksheet) {
   });
 
   // Set date formatting for specific columns
-  const dateColumns = []; // Add any date columns here if needed
+  const dateColumns: number[] = []; // Add any date columns here if needed
   dateColumns.forEach((colIndex) => {
     ws.getColumn(colIndex).numFmt = 'mm/dd/yyyy';
   });
@@ -538,7 +538,7 @@ function styleWorksheet(ws: ExcelJS.Worksheet) {
   // Auto-fit columns based on content
   ws.columns.forEach((col) => {
     let maxWidth = 0;
-    col.eachCell({ includeEmpty: true }, (cell: ExcelJS.Cell) => {
+    col?.eachCell?.({ includeEmpty: true }, (cell: ExcelJS.Cell) => {
       const cellValue = cell.value?.toString() || '';
       maxWidth = Math.max(maxWidth, cellValue.length);
     });
