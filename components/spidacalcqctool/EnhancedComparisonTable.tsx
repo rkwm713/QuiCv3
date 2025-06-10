@@ -140,7 +140,15 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
   const DeltaCell: React.FC<{ spida: any; kat: any }> = ({ spida, kat }) => {
     if (!spida || !kat) return <span className="text-slate-400 text-xs">N/A</span>;
     
-    const difference = spida.height - kat.height;
+    // Calculate adjusted Katapult height if movement data exists
+    let adjustedKatHeight = kat.height;
+    if (kat.mrMove !== undefined && kat.moveDirection !== 'none') {
+      // Convert mr_move from inches to meters and add to original height
+      const movementInMeters = kat.mrMove * 0.0254;
+      adjustedKatHeight = kat.height + movementInMeters;
+    }
+    
+    const difference = spida.height - adjustedKatHeight;
     if (Math.abs(difference) < 0.01) return <span className="text-slate-400 text-xs">—</span>;
     
     const isHigher = difference > 0;
@@ -155,27 +163,47 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
     );
   };
 
-  const MovementCell: React.FC<{ comparison: EnhancedComparison }> = ({ comparison }) => {
-    // Check both SPIDA and Katapult attachments for movement data (prioritize Katapult)
-    const attachment = comparison.katapult || comparison.spida;
+  const KatapultHeightCell: React.FC<{ comparison: EnhancedComparison }> = ({ comparison }) => {
+    const { katapult } = comparison;
     
-    if (!attachment?.mrMove || attachment.moveDirection === 'none') {
-      return <span className="text-slate-400 text-xs">No movement</span>;
+    if (!katapult) {
+      return <span style={{ color: '#718096' }}>No proposed match found</span>;
     }
     
-    const isUpward = attachment.moveDirection === 'up';
-    const chipClasses = isUpward 
-      ? "px-1.5 rounded text-xs font-mono text-blue-400 bg-blue-900/40"
-      : "px-1.5 rounded text-xs font-mono text-orange-400 bg-orange-900/40";
+    // Calculate adjusted height if movement data exists
+    let displayHeight = katapult.height;
+    let hasMovement = false;
+    
+    if (katapult.mrMove !== undefined && katapult.moveDirection !== 'none') {
+      // Convert mr_move from inches to meters and add to original height
+      const movementInMeters = katapult.mrMove * 0.0254;
+      displayHeight = katapult.height + movementInMeters;
+      hasMovement = true;
+    }
     
     return (
-      <div className="text-center">
-        <span className={chipClasses} title={attachment.moveDescription}>
-          {isUpward ? '⬆️' : '⬇️'} {Math.abs(attachment.mrMove!)}″
-        </span>
-        <div className="text-xs text-slate-400 mt-1">
-          {attachment.moveDescription}
+      <div style={{ 
+        opacity: katapult.synthetic ? 0.7 : 1, 
+        fontStyle: katapult.synthetic ? 'italic' : 'normal' 
+      }}>
+        <div style={{ fontWeight: 600 }}>
+          {formatHeightFtIn(displayHeight)}
+          {katapult.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
+          {hasMovement && (
+            <span style={{ 
+              color: katapult.moveDirection === 'up' ? '#3b82f6' : '#f59e0b', 
+              fontSize: '0.8em', 
+              marginLeft: '4px' 
+            }}>
+              {katapult.moveDirection === 'up' ? '⬆️' : '⬇️'}
+            </span>
+          )}
         </div>
+        {hasMovement && (
+          <div style={{ fontSize: '0.75em', color: '#9ca3af', marginTop: '2px' }}>
+            {katapult.moveDescription}
+          </div>
+        )}
       </div>
     );
   };
@@ -199,7 +227,6 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
           <th style={{...styles.thCondensed, textAlign: 'center'}}>SPIDA Recommended Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Katapult Height</th>
           <th style={{...styles.thCondensed, textAlign: 'center'}}>Difference</th>
-          <th style={{...styles.thCondensed, textAlign: 'center'}}>Movement</th>
         </tr>
       </thead>
       <tbody>
@@ -283,13 +310,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
               {/* Katapult height / info */}
               <td style={{ ...styles.tdParent, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
                 {group.insulator.katapult ? (
-                  <div style={{ 
-                    opacity: group.insulator.katapult.synthetic ? 0.7 : 1, 
-                    fontStyle: group.insulator.katapult.synthetic ? 'italic' : 'normal' 
-                  }}>
-                    {formatHeightFtIn(group.insulator.katapult.height)}
-                    {group.insulator.katapult.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
-                  </div>
+                  <KatapultHeightCell comparison={group.insulator} />
                 ) : (
                   <span style={{ color: '#718096' }}>No proposed match found</span>
                 )}
@@ -298,11 +319,6 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
               {/* Difference */}
               <td style={{ ...styles.tdParent, textAlign: 'center' }}>
                 <DeltaCell spida={group.insulator.spida} kat={group.insulator.katapult} />
-              </td>
-
-              {/* Movement */}
-              <td style={{ ...styles.tdParent, textAlign: 'center' }}>
-                <MovementCell comparison={group.insulator} />
               </td>
             </tr>
 
@@ -379,13 +395,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
                 {/* Katapult height / info */}
                 <td style={{ ...styles.tdChild, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.2em', fontWeight: 500 }}>
                   {wireComp.katapult ? (
-                    <div style={{ 
-                      opacity: wireComp.katapult.synthetic ? 0.7 : 1, 
-                      fontStyle: wireComp.katapult.synthetic ? 'italic' : 'normal' 
-                    }}>
-                      {formatHeightFtIn(wireComp.katapult.height)}
-                      {wireComp.katapult.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
-                    </div>
+                    <KatapultHeightCell comparison={wireComp} />
                   ) : (
                     <span style={{ color: '#718096' }}>No proposed match found</span>
                   )}
@@ -394,11 +404,6 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
                 {/* Difference */}
                 <td style={{ ...styles.tdChild, textAlign: 'center' }}>
                   <DeltaCell spida={wireComp.spida} kat={wireComp.katapult} />
-                </td>
-
-                {/* Movement */}
-                <td style={{ ...styles.tdChild, textAlign: 'center' }}>
-                  <MovementCell comparison={wireComp} />
                 </td>
               </tr>
             ))}
@@ -501,13 +506,7 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
             {/* Katapult height / info */}
             <td style={{ ...styles.td, textAlign: 'center', fontFamily: 'monospace', fontSize: '1.4em', fontWeight: 600 }}>
               {katapult ? (
-                <div style={{ 
-                  opacity: katapult.synthetic ? 0.7 : 1, 
-                  fontStyle: katapult.synthetic ? 'italic' : 'normal' 
-                }}>
-                  {formatHeightFtIn(katapult.height)}
-                  {katapult.synthetic && <span style={{ color: '#9ca3af', fontSize: '0.8em', marginLeft: '4px' }}>🤖</span>}
-                </div>
+                <KatapultHeightCell comparison={comparison} />
               ) : (
                 <span style={{ color: '#718096' }}>No proposed match found</span>
               )}
@@ -516,11 +515,6 @@ const EnhancedComparisonTable: React.FC<EnhancedComparisonTableProps> = ({
             {/* Difference */}
             <td style={{ ...styles.td, textAlign: 'center' }}>
               <DeltaCell spida={spida} kat={katapult} />
-            </td>
-
-            {/* Movement */}
-            <td style={{ ...styles.td, textAlign: 'center' }}>
-              <MovementCell comparison={comparison} />
             </td>
           </tr>
         );
