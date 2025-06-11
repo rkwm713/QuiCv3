@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ComparisonResult } from './types';
 import ComparisonTable from './ComparisonTable';
 import EnhancedComparisonTable from './EnhancedComparisonTable';
+import SplitScreenComparison from './SplitScreenComparison';
 import { formatMetersToFeetInches } from '../../utils/measurements';
 
 interface ComparisonPoleProps {
@@ -11,7 +12,8 @@ interface ComparisonPoleProps {
 }
 
 const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true); // Start expanded by default
+  const [viewMode, setViewMode] = useState<'tables' | 'split-screen'>('split-screen');
 
   // Calculate summary stats for the header
   const totalSpidaMeasured = result.spidaMeasured.length;
@@ -107,7 +109,7 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
           </div>
         </div>
 
-        {/* Enhanced Summary Bar and Expand Arrow */}
+        {/* Enhanced Summary Bar, View Toggle, and Expand Arrow */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div className="text-xs font-mono gap-x-3 flex items-center">
             <span className="text-slate-300">{totalSpidaMeasured} vs {totalKatapultExisting}</span>
@@ -122,6 +124,27 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
               </>
             )}
           </div>
+          
+          {/* View Mode Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => setViewMode(viewMode === 'tables' ? 'split-screen' : 'tables')}
+              style={{
+                backgroundColor: viewMode === 'split-screen' ? '#3b82f6' : '#6b7280',
+                color: 'white',
+                border: 'none',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '0.75em',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+              title={`Switch to ${viewMode === 'tables' ? 'split-screen' : 'table'} view`}
+            >
+              {viewMode === 'split-screen' ? '📊 Split' : '📋 Tables'}
+            </button>
+          </div>
+          
           <span style={{ 
             fontSize: '1.2em', 
             color: '#a0aec0',
@@ -136,125 +159,128 @@ const ComparisonPole: React.FC<ComparisonPoleProps> = ({ result }) => {
       {/* Expandable Content */}
       {isExpanded && (
         <div style={{ padding: '20px', backgroundColor: '#1a202c' }}>
-          <div style={{ display: 'grid', gap: '20px' }}>
-            
-            {/* Measured vs Existing Card */}
-            <div style={{ 
-              border: '1px solid #3182ce', 
-              borderRadius: '8px',
-              backgroundColor: '#2d3748'
-            }}>
-              <div style={{ 
-                padding: '16px',
-                backgroundColor: '#3182ce',
-                borderRadius: '8px 8px 0 0',
-                borderBottom: '1px solid #2c5282'
-              }}>
-                <h4 style={{ 
-                  margin: '0', 
-                  color: '#ffffff',
-                  fontSize: '1.1em',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  📊 Measured (SPIDA) vs Existing (Katapult)
-                  <span style={{ 
-                    fontSize: '0.85em', 
-                    fontWeight: 'normal',
-                    backgroundColor: '#1a365d',
-                    color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: '10px'
-                  }}>
-                    {totalSpidaMeasured} vs {totalKatapultExisting}
-                  </span>
-                </h4>
-              </div>
+          {viewMode === 'split-screen' ? (
+            /* Split Screen View */
+            <SplitScreenComparison result={result} />
+          ) : (
+            /* Traditional Table View */
+            <div style={{ display: 'grid', gap: '20px' }}>
               
-              <div style={{ padding: '16px' }}>
-                {totalSpidaMeasured > 0 || totalKatapultExisting > 0 ? (
-                  <ComparisonTable 
-                    spidaAttachments={result.spidaMeasured}
-                    katapultAttachments={result.katapultExisting}
-                  />
-                ) : (
-                  <div style={{ 
-                    padding: '20px', 
-                    textAlign: 'center', 
-                    color: '#a0aec0',
-                    fontStyle: 'italic',
-                    backgroundColor: '#1a202c',
-                    border: '1px dashed #4a5568',
-                    borderRadius: '4px'
+              {/* Measured vs Existing Card */}
+              <div style={{ 
+                border: '1px solid #3182ce', 
+                borderRadius: '8px',
+                backgroundColor: '#2d3748'
+              }}>
+                <div style={{ 
+                  padding: '16px',
+                  backgroundColor: '#3182ce',
+                  borderRadius: '8px 8px 0 0',
+                  borderBottom: '1px solid #2c5282'
+                }}>
+                  <h4 style={{ 
+                    margin: '0', 
+                    color: '#ffffff',
+                    fontSize: '1.1em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}>
-                    No measured or existing attachments to compare
-                  </div>
-                )}
+                    📊 Measured (SPIDA) vs Existing (Katapult)
+                    <span style={{ 
+                      fontSize: '0.85em', 
+                      fontWeight: 'normal',
+                      backgroundColor: '#1a365d',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '10px'
+                    }}>
+                      {totalSpidaMeasured} vs {totalKatapultExisting}
+                    </span>
+                  </h4>
+                </div>
+                
+                <div style={{ padding: '16px' }}>
+                  {totalSpidaMeasured > 0 || totalKatapultExisting > 0 ? (
+                    <ComparisonTable 
+                      spidaAttachments={result.spidaMeasured}
+                      katapultAttachments={result.katapultExisting}
+                    />
+                  ) : (
+                    <div style={{ 
+                      padding: '20px', 
+                      textAlign: 'center', 
+                      color: '#a0aec0',
+                      fontStyle: 'italic',
+                      backgroundColor: '#1a202c',
+                      border: '1px dashed #4a5568',
+                      borderRadius: '4px'
+                    }}>
+                      No measured or existing attachments to compare
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recommended vs Proposed Card */}
+              <div style={{ 
+                border: '1px solid #38a169', 
+                borderRadius: '8px',
+                backgroundColor: '#2d3748'
+              }}>
+                <div style={{ 
+                  padding: '16px',
+                  backgroundColor: '#38a169',
+                  borderRadius: '8px 8px 0 0',
+                  borderBottom: '1px solid #2f855a'
+                }}>
+                  <h4 style={{ 
+                    margin: '0', 
+                    color: '#ffffff',
+                    fontSize: '1.1em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    🔧 Recommended (SPIDA) vs Proposed (Katapult)
+                    <span style={{ 
+                      fontSize: '0.85em', 
+                      fontWeight: 'normal',
+                      backgroundColor: '#1c4532',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '10px'
+                    }}>
+                      {changesLabel} vs {totalKatapultProposed}
+                    </span>
+                  </h4>
+                </div>
+                
+                <div style={{ padding: '16px' }}>
+                  {result.enhancedProposedComparison && result.enhancedProposedComparison.length > 0 ? (
+                    <EnhancedComparisonTable 
+                      enhancedComparisons={result.enhancedProposedComparison}
+                    />
+                  ) : (
+                    <div style={{ 
+                      padding: '20px', 
+                      textAlign: 'center', 
+                      color: '#a0aec0',
+                      fontStyle: 'italic',
+                      backgroundColor: '#1a202c',
+                      border: '1px dashed #4a5568',
+                      borderRadius: '4px'
+                    }}>
+                      {changesCount === 0 ? 
+                        'No changes between Measured and Recommended designs' : 
+                        'No proposed attachments to compare'
+                      }
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
-            {/* Recommended vs Proposed Card */}
-            <div style={{ 
-              border: '1px solid #38a169', 
-              borderRadius: '8px',
-              backgroundColor: '#2d3748'
-            }}>
-              <div style={{ 
-                padding: '16px',
-                backgroundColor: '#38a169',
-                borderRadius: '8px 8px 0 0',
-                borderBottom: '1px solid #2f855a'
-              }}>
-                <h4 style={{ 
-                  margin: '0', 
-                  color: '#ffffff',
-                  fontSize: '1.1em',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  🔧 Recommended (SPIDA) vs Proposed (Katapult)
-                  <span style={{ 
-                    fontSize: '0.85em', 
-                    fontWeight: 'normal',
-                    backgroundColor: '#1c4532',
-                    color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: '10px'
-                  }}>
-                    {changesLabel} vs {totalKatapultProposed}
-                  </span>
-                </h4>
-              </div>
-              
-              <div style={{ padding: '16px' }}>
-                {result.enhancedProposedComparison && result.enhancedProposedComparison.length > 0 ? (
-                  <EnhancedComparisonTable 
-                    enhancedComparisons={result.enhancedProposedComparison}
-                  />
-                ) : (
-                  <div style={{ 
-                    padding: '20px', 
-                    textAlign: 'center', 
-                    color: '#a0aec0',
-                    fontStyle: 'italic',
-                    backgroundColor: '#1a202c',
-                    border: '1px dashed #4a5568',
-                    borderRadius: '4px'
-                  }}>
-                    {changesCount === 0 ? 
-                      'No changes between Measured and Recommended designs' : 
-                      'No proposed attachments to compare'
-                    }
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Removed: Normalized Attachment Points, Production Guy Matching, and Cross-arm Mapping tables */}
-
-          </div>
+          )}
         </div>
       )}
     </div>

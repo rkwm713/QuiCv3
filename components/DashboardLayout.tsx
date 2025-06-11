@@ -5,6 +5,7 @@ import { CoverSheetTable } from './CoverSheetTable';
 import { DataManagement } from './DataManagement';
 import { MakeReadyReport } from './MakeReadyReport';
 import SpidaQcTool from './spidacalcqctool/SpidaQcTool';
+import QCToolV2 from './qctoolv2/QCToolV2';
 
 interface DashboardLayoutProps {
   dataSourceSection: React.ReactNode;
@@ -57,6 +58,13 @@ const StatisticsIcon: React.FC = () => (
 const QCIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const QCIconV2: React.FC = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.5-7L15 5l-7-7-3 3m2 2l.5.5M19 19l2 2m-2-2v-2.99M19 19l-2-2m2 2l-2-2" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -198,7 +206,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   spidaFileName,
   katapultFileName,
 }) => {
-  const [activeTab, setActiveTab] = useState<'demo' | 'data-management' | 'table' | 'coversheet' | 'make-ready' | 'map' | 'analytics' | 'statistics' | 'qc'>('data-management');
+  const [activeTab, setActiveTab] = useState<'demo' | 'data-management' | 'table' | 'coversheet' | 'make-ready' | 'map' | 'analytics' | 'statistics' | 'qc' | 'qc-v2'>('data-management');
   const [hasAutoSwitchedToTable, setHasAutoSwitchedToTable] = useState(false);
   const [isAiUnlocked, setIsAiUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -266,6 +274,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'data-management' as const, name: 'Data Management', icon: <DataManagementIcon />, description: 'Load data, run analysis, and export results' },
     { id: 'table' as const, name: 'Katapult Attribute Check', icon: <TableIcon />, description: 'Verify Pole Numbers, SCIDs, Specs, and Loading %' },
     { id: 'qc' as const, name: 'SPIDA QC Tool', icon: <QCIcon />, description: 'Analyze and compare pole attachments from SPIDAcalc data' },
+    { id: 'qc-v2' as const, name: 'QC Tool v2', icon: <QCIconV2 />, description: 'Advanced quality control analysis tool for SPIDAcalc and Katapult data' },
     { id: 'coversheet' as const, name: 'CoverSheet', icon: <CoverSheetIcon />, description: 'Generate a PE cover sheet from SPIDAcalc data' },
     { id: 'map' as const, name: 'Map View', icon: <MapIcon />, description: 'Geographic visualization' },
     { id: 'statistics' as const, name: 'Statistics', icon: <StatisticsIcon />, description: 'Match statistics & insights' },
@@ -390,6 +399,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {activeTab === 'qc' && (
               <div className="content-container">
                 <SpidaQcTool 
+                  spidaJson={spidaJson} 
+                  katapultJson={katapultJson}
+                  spidaFileName={spidaFileName}
+                  katapultFileName={katapultFileName}
+                />
+              </div>
+            )}
+
+            {activeTab === 'qc-v2' && (
+              <div className="content-container">
+                <QCToolV2 
                   spidaJson={spidaJson} 
                   katapultJson={katapultJson}
                   spidaFileName={spidaFileName}

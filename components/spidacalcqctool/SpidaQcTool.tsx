@@ -65,7 +65,7 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
   const [katapultData, setKatapultData] = useState<KatapultData | null>(null);
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [, setWarnings] = useState<string[]>([]);
   const [localSpidaFileName, setLocalSpidaFileName] = useState<string | null>(null);
   const [localKatapultFileName, setLocalKatapultFileName] = useState<string | null>(null);
 
@@ -1818,23 +1818,6 @@ const SpidaQcTool: React.FC<SpidaQcToolProps> = ({
       )}
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
-      
-      {warnings.length > 0 && (
-        <div style={{ 
-          margin: '16px 0', 
-          padding: '12px', 
-          backgroundColor: '#fef3c7', 
-          border: '1px solid #f59e0b',
-          borderRadius: '8px'
-        }}>
-          <h4 style={{ margin: '0 0 8px 0', color: '#d97706' }}>⚠️ Parsing Warnings</h4>
-          <ul style={{ margin: 0, paddingLeft: '20px' }}>
-            {warnings.map((warning, idx) => (
-              <li key={idx} style={{ color: '#92400e', fontSize: '0.9em' }}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {spidaData && (
         <div style={{ marginTop: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
