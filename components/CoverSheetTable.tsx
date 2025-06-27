@@ -372,17 +372,56 @@ async function getLocationInfoAsync(data: ProcessedPole[]): Promise<{ address: s
   const firstPole = data[0];
   let coordinates: { lat: number; lng: number } | undefined;
 
-  // Extract coordinates from various possible sources
-  if (firstPole.mapCoords) {
-    coordinates = { lat: firstPole.mapCoords.lat, lng: firstPole.mapCoords.lon };
-  } else if (firstPole.spidaMapCoords) {
-    coordinates = { lat: firstPole.spidaMapCoords.lat, lng: firstPole.spidaMapCoords.lon };
-  } else if (firstPole.katapultMapCoords) {
-    coordinates = { lat: firstPole.katapultMapCoords.lat, lng: firstPole.katapultMapCoords.lon };
-  } else if (firstPole.spida?.coords) {
-    coordinates = { lat: firstPole.spida.coords.lat, lng: firstPole.spida.coords.lon };
-  } else if (firstPole.katapult?.coords) {
-    coordinates = { lat: firstPole.katapult.coords.lat, lng: firstPole.katapult.coords.lon };
+  // First try to extract coordinates from SPIDA file structure
+  if (firstPole.spida?.rawData) {
+    try {
+      const spidaData = firstPole.spida.rawData;
+      
+      // Check for coordinates in leads[0].locations[0].geographicCoordinate.coordinates
+      if (spidaData.leads && spidaData.leads[0] && spidaData.leads[0].locations && spidaData.leads[0].locations[0]) {
+        const geoCoord = spidaData.leads[0].locations[0].geographicCoordinate;
+        if (geoCoord && geoCoord.coordinates && Array.isArray(geoCoord.coordinates) && geoCoord.coordinates.length >= 2) {
+          // SPIDA format is [longitude, latitude] - need to swap for our format
+          const [lng, lat] = geoCoord.coordinates;
+          if (typeof lng === 'number' && typeof lat === 'number') {
+            coordinates = { lat, lng };
+          }
+        }
+      }
+      
+      // Fallback: check for coordinates in project structure
+      if (!coordinates && spidaData.project && spidaData.project.structures) {
+        for (const structure of spidaData.project.structures) {
+          if (structure.geographicCoordinate && structure.geographicCoordinate.coordinates) {
+            const coords = structure.geographicCoordinate.coordinates;
+            if (Array.isArray(coords) && coords.length >= 2) {
+              const [lng, lat] = coords;
+              if (typeof lng === 'number' && typeof lat === 'number') {
+                coordinates = { lat, lng };
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error extracting coordinates from SPIDA data:', error);
+    }
+  }
+
+  // Fallback to existing coordinate sources if SPIDA extraction failed
+  if (!coordinates) {
+    if (firstPole.mapCoords) {
+      coordinates = { lat: firstPole.mapCoords.lat, lng: firstPole.mapCoords.lon };
+    } else if (firstPole.spidaMapCoords) {
+      coordinates = { lat: firstPole.spidaMapCoords.lat, lng: firstPole.spidaMapCoords.lon };
+    } else if (firstPole.katapultMapCoords) {
+      coordinates = { lat: firstPole.katapultMapCoords.lat, lng: firstPole.katapultMapCoords.lon };
+    } else if (firstPole.spida?.coords) {
+      coordinates = { lat: firstPole.spida.coords.lat, lng: firstPole.spida.coords.lon };
+    } else if (firstPole.katapult?.coords) {
+      coordinates = { lat: firstPole.katapult.coords.lat, lng: firstPole.katapult.coords.lon };
+    }
   }
 
   if (coordinates && geocodingService.isValidCoordinates(coordinates)) {
@@ -430,6 +469,9 @@ const ResultsCard: React.FC<ResultsCardProps> = ({ spidaFileName, poleCount, loc
   const jobName = `2-2025-TSCPS-${cleanFileName}`;
   const comments = `${poleCount} PLAs on ${poleCount} poles`;
 
+  // Check if location info appears to be coordinates vs real address
+  const isCoordinateAddress = locationInfo.address.includes('Location:') || locationInfo.address.includes('Lat:');
+
   return (
     <div className="bg-slate-800/90 border border-slate-700/50 rounded-lg p-6 mb-6">
       <h3 className="text-lg font-semibold text-slate-200 mb-4">Project Information</h3>
@@ -444,7 +486,12 @@ const ResultsCard: React.FC<ResultsCardProps> = ({ spidaFileName, poleCount, loc
             <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{currentDate}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Location of Poles:</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">
+              Location of Poles:
+              {isCoordinateAddress && (
+                <span className="text-xs text-amber-400 ml-1">(Coordinates - geocoding failed)</span>
+              )}
+            </label>
             <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{locationInfo.address}</p>
           </div>
         </div>
@@ -502,13 +549,24 @@ export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data, spidaFil
           ? `${parseFloat(pole.editableSpidaFinalPct).toFixed(2)}%` 
           : 'N/A';
 
+        // Generate initial rule-based notes using workDescriptionService
+        let initialNotes = '';
+        try {
+          if (pole.spida?.rawData) {
+            initialNotes = generateEnhancedWorkDescription(pole) || 'Install Charter Fiber.';
+          }
+        } catch (error) {
+          console.warn('Error generating initial notes for pole:', pole.id, error);
+          initialNotes = 'Install Charter Fiber.';
+        }
+
         return {
           id: pole.id,
           scid,
           poleNumber,
           existingLoading,
           finalLoading,
-          notes: '',
+          notes: initialNotes,
           isGeneratingNotes: false,
           isEditingNotes: false,
         };
@@ -584,7 +642,7 @@ export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data, spidaFil
   };
 
   // Enhanced AI note generation following the user's roadmap
-  const generateNotesForPole = async (poleId: string) => {
+  const enhanceNotesWithAI = async (poleId: string) => {
     const poleIndex = coverSheetData.findIndex(row => row.id === poleId);
     if (poleIndex === -1) return;
 
@@ -729,6 +787,36 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
     }
   };
 
+  // Reset notes to rule-based (non-AI) version
+  const resetToRuleBasedNotes = (poleId: string) => {
+    const pole = data.find(p => p.id === poleId);
+    if (!pole?.spida?.rawData) return;
+
+    const poleIndex = coverSheetData.findIndex(row => row.id === poleId);
+    if (poleIndex === -1) return;
+
+    try {
+      const ruleBasedNotes = generateEnhancedWorkDescription(pole) || 'Install Charter Fiber.';
+      
+      setCoverSheetData(prev => 
+        prev.map((row, index) => 
+          index === poleIndex 
+            ? { ...row, notes: ruleBasedNotes }
+            : row
+        )
+      );
+    } catch (error) {
+      console.error('Error generating rule-based notes for pole:', poleId, error);
+      setCoverSheetData(prev => 
+        prev.map((row, index) => 
+          index === poleIndex 
+            ? { ...row, notes: 'Install Charter Fiber.' }
+            : row
+        )
+      );
+    }
+  };
+
   // Toggle note editing mode
   const toggleNoteEditing = (poleId: string) => {
     setCoverSheetData(prev => 
@@ -751,18 +839,18 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
     );
   };
 
-  // Generate AI notes for all poles
+  // Enhance AI notes for all poles (rule-based notes are already generated)
   const generateAllNotes = async () => {
     setIsGeneratingAllNotes(true);
     
     try {
       for (let i = 0; i < coverSheetData.length; i++) {
-        await generateNotesForPole(coverSheetData[i].id);
+        await enhanceNotesWithAI(coverSheetData[i].id);
         // Small delay to avoid overwhelming the API
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     } catch (error) {
-      console.error('Error generating all notes:', error);
+      console.error('Error enhancing all notes with AI:', error);
     } finally {
       setIsGeneratingAllNotes(false);
     }
@@ -793,6 +881,53 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
     document.body.removeChild(link);
   };
 
+  // Helper functions for percentage color coding and row highlighting
+  function getPercentageColorClasses(percentage: string): string {
+    if (percentage === 'N/A') {
+      return 'bg-slate-700/50 text-slate-300';
+    }
+    
+    const numValue = parseFloat(percentage);
+    if (isNaN(numValue)) {
+      return 'bg-slate-700/50 text-slate-300';
+    }
+    
+    if (numValue < 80) {
+      return 'bg-green-500/20 text-green-400 border border-green-500/30';
+    } else if (numValue >= 80 && numValue < 90) {
+      return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30';
+    } else {
+      return 'bg-red-500/20 text-red-400 border border-red-500/30';
+    }
+  }
+
+  function shouldHighlightRow(existingLoading: string, finalLoading: string): boolean {
+    if (existingLoading === 'N/A' || finalLoading === 'N/A') {
+      return false;
+    }
+    
+    const existing = parseFloat(existingLoading);
+    const final = parseFloat(finalLoading);
+    
+    if (isNaN(existing) || isNaN(final)) {
+      return false;
+    }
+    
+    return Math.abs(final - existing) > 29;
+  }
+
+  function getRowClasses(index: number, existingLoading: string, finalLoading: string): string {
+    const baseClasses = `
+      transition-all duration-200 hover:bg-slate-700/20
+      ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/10'}
+    `;
+    
+    const shouldHighlight = shouldHighlightRow(existingLoading, finalLoading);
+    const highlightClasses = shouldHighlight ? 'border-2 border-red-500 bg-red-500/10' : '';
+    
+    return `${baseClasses} ${highlightClasses}`.trim();
+  }
+
   if (!data || data.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
@@ -819,8 +954,29 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
           <div>
             <h3 className="text-lg font-semibold text-slate-200">Cover Sheet</h3>
             <p className="text-sm text-slate-400">
-              Showing {coverSheetData.length} pole{coverSheetData.length !== 1 ? 's' : ''} from SPIDA data
+              Showing {coverSheetData.length} pole{coverSheetData.length !== 1 ? 's' : ''} with rule-based notes. Use AI enhancement for additional refinement.
             </p>
+            {/* Color Legend */}
+            <div className="flex items-center space-x-4 mt-2 text-xs">
+              <span className="text-slate-400">Loading:</span>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-green-500/20 border border-green-500/30 rounded"></div>
+                <span className="text-green-400">&lt;80%</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-yellow-500/20 border border-yellow-500/30 rounded"></div>
+                <span className="text-yellow-400">80-89%</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-red-500/20 border border-red-500/30 rounded"></div>
+                <span className="text-red-400">≥90%</span>
+              </div>
+              <span className="text-slate-500">|</span>
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 border-2 border-red-500 rounded"></div>
+                <span className="text-red-400">&gt;29% change</span>
+              </div>
+            </div>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -834,14 +990,14 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
                   <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  <span>Generating...</span>
+                  <span>Enhancing with AI...</span>
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
-                  <span>Generate All Notes</span>
+                  <span>Enhance All with AI</span>
                 </>
               )}
             </button>
@@ -900,10 +1056,7 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
             {coverSheetData.map((row, index) => (
               <tr 
                 key={row.id} 
-                className={`
-                  transition-all duration-200 hover:bg-slate-700/20
-                  ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/10'}
-                `}
+                className={getRowClasses(index, row.existingLoading, row.finalLoading)}
               >
                 <td className="px-4 py-3 text-sm text-slate-300 border-r border-slate-700/20">
                   {row.scid}
@@ -912,24 +1065,12 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
                   {row.poleNumber}
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-300 border-r border-slate-700/20 text-center">
-                  <span className={`
-                    px-2 py-1 rounded-md text-xs font-medium
-                    ${row.existingLoading !== 'N/A' && parseFloat(row.existingLoading) > 90 
-                      ? 'bg-red-500/20 text-red-400' 
-                      : 'bg-slate-700/50 text-slate-300'
-                    }
-                  `}>
+                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${getPercentageColorClasses(row.existingLoading)}`}>
                     {row.existingLoading}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-300 border-r border-slate-700/20 text-center">
-                  <span className={`
-                    px-2 py-1 rounded-md text-xs font-medium
-                    ${row.finalLoading !== 'N/A' && parseFloat(row.finalLoading) > 90 
-                      ? 'bg-red-500/20 text-red-400' 
-                      : 'bg-slate-700/50 text-slate-300'
-                    }
-                  `}>
+                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${getPercentageColorClasses(row.finalLoading)}`}>
                     {row.finalLoading}
                   </span>
                 </td>
@@ -1005,15 +1146,27 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
                     </button>
                     
                     <button
-                      onClick={() => generateNotesForPole(row.id)}
+                      onClick={() => enhanceNotesWithAI(row.id)}
                       disabled={row.isGeneratingNotes || isGeneratingAllNotes}
                       className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-emerald-600/20 text-emerald-400 rounded hover:bg-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      title="Generate AI notes for this pole"
+                      title="Enhance notes with AI for this pole"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
-                      <span>Generate</span>
+                      <span>AI Enhance</span>
+                    </button>
+
+                    <button
+                      onClick={() => resetToRuleBasedNotes(row.id)}
+                      disabled={row.isGeneratingNotes || isGeneratingAllNotes}
+                      className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="Reset to rule-based notes"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                      </svg>
+                      <span>Reset</span>
                     </button>
 
                     {row.notes && (
@@ -1021,12 +1174,12 @@ Write 1–4 short sentences, present tense imperative, one action per sentence. 
                         onClick={() => regenerateNotesForPole(row.id)}
                         disabled={row.isGeneratingNotes || isGeneratingAllNotes}
                         className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-amber-600/20 text-amber-400 rounded hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title="Regenerate AI notes with variation"
+                        title="Regenerate AI enhancement with variation"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        <span>Regen</span>
+                        <span>AI Regen</span>
                       </button>
                     )}
 
