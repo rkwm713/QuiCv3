@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ProcessedPole } from '../types';
 import { OpenAIService } from '../services/openaiService';
+import { workDescriptionService } from '../services/workDescriptionService';
+import { geocodingService } from '../services/geocodingService';
 
 // New bucketised change summary interfaces
 interface ClearanceResolve {
@@ -43,6 +45,7 @@ interface CoverSheetRow {
 
 interface CoverSheetTableProps {
   data: ProcessedPole[];
+  spidaFileName?: string | null;
 }
 
 // Helper function to extract attachment changes
@@ -156,11 +159,95 @@ function formatAttachmentDescription(attachment: any): string {
   return `${attachment.type}${wireType} at ${height}′${owner}`;
 }
 
-// Enhanced function to summarize all pole changes
+// Enhanced function to summarize all pole changes using the work description service
 function summarizePoleChanges(pole: any): PoleChangeSummary {
   const poleId = pole.displaySpidaScid || pole.displayKatapultScid || pole.id;
 
-  // Placeholder arrays – will attempt simple extraction with available data.
+  // Extract SPIDA designs for analysis
+  let measuredDesign: any = null;
+  let recommendedDesign: any = null;
+
+  if (pole.spida?.rawData) {
+    // Try to find designs from various SPIDA structures
+    const spidaData = pole.spida.rawData;
+    
+    if (spidaData.designs) {
+      measuredDesign = spidaData.designs.find((d: any) => d.layerType === 'Measured');
+      recommendedDesign = spidaData.designs.find((d: any) => d.layerType === 'Recommended');
+    } else if (spidaData.leads?.[0]?.locations?.[0]?.designs) {
+      const designs = spidaData.leads[0].locations[0].designs;
+      measuredDesign = designs.find((d: any) => d.layerType === 'Measured');
+      recommendedDesign = designs.find((d: any) => d.layerType === 'Recommended');
+    } else {
+      measuredDesign = spidaData.measuredDesign;
+      recommendedDesign = spidaData.recommendedDesign;
+    }
+  }
+
+  // If we have both designs, use the enhanced work description service
+  if (measuredDesign && recommendedDesign) {
+    try {
+      const detailedAnalysis = workDescriptionService.generateDetailedWorkDescription({
+        measured: measuredDesign,
+        recommended: recommendedDesign,
+        poleScid: poleId
+      });
+
+      const analysis = detailedAnalysis.analysis;
+      
+      // Convert the analysis back to the expected format
+      const installations: string[] = [];
+      if (analysis.fiberInstallation) {
+        installations.push(analysis.fiberInstallation);
+      }
+      installations.push(...analysis.risers);
+
+      const clearanceResolves: ClearanceResolve[] = [];
+      // Convert vertical relocations to clearance resolves
+      analysis.verticalRelocations.forEach(relocation => {
+        if (relocation.includes('ground clearance')) {
+          clearanceResolves.push({ type: 'ground', action: 'raise' });
+        } else if (relocation.includes('allow room')) {
+          clearanceResolves.push({ type: 'spacing', action: 'lower' });
+        }
+      });
+
+      const anchorResolves: AnchorResolve[] = [];
+      analysis.guying.forEach(guyChange => {
+        if (guyChange.includes('anchor violation')) {
+          anchorResolves.push({ type: 'comm-power', action: 'rearrange' });
+        }
+      });
+
+      // Count proposed guys from guying analysis
+      const proposedGuys = analysis.guying
+        .filter(change => change.includes('guy added'))
+        .reduce((count, change) => {
+          const match = change.match(/(\w+) proposed down guys?/i);
+          if (match) {
+            const numberWords = ['one', 'two', 'three', 'four', 'five'];
+            const index = numberWords.indexOf(match[1].toLowerCase());
+            return count + (index >= 0 ? index + 1 : 1);
+          }
+          return count + 1;
+        }, 0);
+
+      return {
+        poleId,
+        installations,
+        clearanceResolves,
+        anchorResolves,
+        proposedGuys,
+        excavations: [], // Will be extracted from risers if underground bore is mentioned
+        removals: [], // Could be extracted from stub pole transfers
+        transfers: analysis.stubPoleTransfers,
+      };
+    } catch (error) {
+      console.warn('Failed to use enhanced work description service, falling back to simple analysis:', error);
+    }
+  }
+
+  // Fallback to simple analysis if enhanced service fails
   const installations: string[] = [];
   const removals: string[] = [];
   const transfers: string[] = [];
@@ -175,7 +262,6 @@ function summarizePoleChanges(pole: any): PoleChangeSummary {
   // Rough heuristic: count how many of the added attachments mention 'guy'
   const proposedGuys = added.filter((desc: string) => /guy/i.test(desc)).length;
 
-  // TODO: Properly parse clearance and anchor resolutions from SPIDA analysis results.
   const clearanceResolves: ClearanceResolve[] = [];
   const anchorResolves: AnchorResolve[] = [];
 
@@ -189,6 +275,48 @@ function summarizePoleChanges(pole: any): PoleChangeSummary {
     removals,
     transfers,
   };
+}
+
+// Enhanced work description generation using the work description service
+function generateEnhancedWorkDescription(pole: any): string {
+  // Extract SPIDA designs for analysis
+  let measuredDesign: any = null;
+  let recommendedDesign: any = null;
+
+  if (pole.spida?.rawData) {
+    const spidaData = pole.spida.rawData;
+    
+    if (spidaData.designs) {
+      measuredDesign = spidaData.designs.find((d: any) => d.layerType === 'Measured');
+      recommendedDesign = spidaData.designs.find((d: any) => d.layerType === 'Recommended');
+    } else if (spidaData.leads?.[0]?.locations?.[0]?.designs) {
+      const designs = spidaData.leads[0].locations[0].designs;
+      measuredDesign = designs.find((d: any) => d.layerType === 'Measured');
+      recommendedDesign = designs.find((d: any) => d.layerType === 'Recommended');
+    } else {
+      measuredDesign = spidaData.measuredDesign;
+      recommendedDesign = spidaData.recommendedDesign;
+    }
+  }
+
+  // If we have both designs, use the enhanced work description service
+  if (measuredDesign && recommendedDesign) {
+    try {
+      const poleId = pole.displaySpidaScid || pole.displayKatapultScid || pole.id;
+      return workDescriptionService.generateWorkDescription({
+        measured: measuredDesign,
+        recommended: recommendedDesign,
+        poleScid: poleId
+      });
+    } catch (error) {
+      console.warn('Failed to generate enhanced work description:', error);
+    }
+  }
+
+  // Fallback to sentence-based approach
+  const changeSummary = summarizePoleChanges(pole);
+  const actionSentences = buildSentences(changeSummary);
+  return actionSentences.join(' ') || 'Install Charter Fiber.';
 }
 
 // Build domain-aware sentence fragments as per enhanced roadmap
@@ -235,10 +363,118 @@ function buildSentences(change: PoleChangeSummary): string[] {
   return sents.map(s => (s.endsWith('.') ? s : s + '.'));
 }
 
-export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data }) => {
+// Helper function to get location information for the first pole
+async function getLocationInfoAsync(data: ProcessedPole[]): Promise<{ address: string; city: string; coordinates?: { lat: number; lng: number } }> {
+  if (!data.length) {
+    return { address: 'N/A', city: 'N/A' };
+  }
+
+  const firstPole = data[0];
+  let coordinates: { lat: number; lng: number } | undefined;
+
+  // Extract coordinates from various possible sources
+  if (firstPole.mapCoords) {
+    coordinates = { lat: firstPole.mapCoords.lat, lng: firstPole.mapCoords.lon };
+  } else if (firstPole.spidaMapCoords) {
+    coordinates = { lat: firstPole.spidaMapCoords.lat, lng: firstPole.spidaMapCoords.lon };
+  } else if (firstPole.katapultMapCoords) {
+    coordinates = { lat: firstPole.katapultMapCoords.lat, lng: firstPole.katapultMapCoords.lon };
+  } else if (firstPole.spida?.coords) {
+    coordinates = { lat: firstPole.spida.coords.lat, lng: firstPole.spida.coords.lon };
+  } else if (firstPole.katapult?.coords) {
+    coordinates = { lat: firstPole.katapult.coords.lat, lng: firstPole.katapult.coords.lon };
+  }
+
+  if (coordinates && geocodingService.isValidCoordinates(coordinates)) {
+    try {
+      const geocodeResult = await geocodingService.reverseGeocode(coordinates);
+      return {
+        address: geocodeResult.address,
+        city: `${geocodeResult.city}, ${geocodeResult.state}`,
+        coordinates
+      };
+    } catch (error) {
+      console.warn('Geocoding failed, using coordinates:', error);
+    }
+  }
+
+  // Fallback to coordinates or placeholder
+  const address = coordinates ? 
+    `Location: ${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}` : 
+    'Address not available';
+  
+  const city = 'City, State'; // Placeholder fallback
+
+  return { address, city, coordinates };
+}
+
+// Results card component
+interface ResultsCardProps {
+  spidaFileName: string | null | undefined;
+  poleCount: number;
+  locationInfo: { address: string; city: string };
+}
+
+const ResultsCard: React.FC<ResultsCardProps> = ({ spidaFileName, poleCount, locationInfo }) => {
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+
+  // Extract just the filename without extension for the job name
+  const cleanFileName = spidaFileName ? 
+    spidaFileName.replace(/\.[^/.]+$/, '') : // Remove file extension
+    'Unknown';
+
+  const jobName = `2-2025-TSCPS-${cleanFileName}`;
+  const comments = `${poleCount} PLAs on ${poleCount} poles`;
+
+  return (
+    <div className="bg-slate-800/90 border border-slate-700/50 rounded-lg p-6 mb-6">
+      <h3 className="text-lg font-semibold text-slate-200 mb-4">Project Information</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Job:</label>
+            <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{jobName}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Date:</label>
+            <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{currentDate}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Location of Poles:</label>
+            <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{locationInfo.address}</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">City:</label>
+            <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{locationInfo.city}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Project Engineer:</label>
+            <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">Andrea Sfondrini</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">Comments:</label>
+            <p className="text-slate-100 bg-slate-700/50 px-3 py-2 rounded border">{comments}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data, spidaFileName }) => {
   const [coverSheetData, setCoverSheetData] = useState<CoverSheetRow[]>([]);
   const [isGeneratingAllNotes, setIsGeneratingAllNotes] = useState(false);
   const [copiedRowId, setCopiedRowId] = useState<string | null>(null);
+  const [locationInfo, setLocationInfo] = useState<{ address: string; city: string }>({ 
+    address: 'Loading...', 
+    city: 'Loading...' 
+  });
   const aiService = new OpenAIService();
 
   // Transform ProcessedPole data to CoverSheet format
@@ -289,6 +525,18 @@ export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data }) => {
   useEffect(() => {
     setCoverSheetData(transformedData);
   }, [transformedData]);
+
+  // Load location info asynchronously
+  useEffect(() => {
+    if (data.length > 0) {
+      getLocationInfoAsync(data).then(info => {
+        setLocationInfo({ address: info.address, city: info.city });
+      }).catch(error => {
+        console.error('Failed to load location info:', error);
+        setLocationInfo({ address: 'Address unavailable', city: 'City, State' });
+      });
+    }
+  }, [data]);
 
   // Copy row data to clipboard in Excel-compatible format
   const copyRowToClipboard = async (row: CoverSheetRow) => {
@@ -353,18 +601,35 @@ export const CoverSheetTable: React.FC<CoverSheetTableProps> = ({ data }) => {
     );
 
     try {
-      // Step 1: Build change summary and sentence fragments
+      // Step 1: Generate enhanced work description directly
+      const enhancedDescription = generateEnhancedWorkDescription(pole);
+
+      // Step 2: If we have a good enhanced description, use it directly
+      if (enhancedDescription && enhancedDescription !== 'Install Charter Fiber.') {
+        setCoverSheetData(prev => 
+          prev.map((row, index) => 
+            index === poleIndex 
+              ? { ...row, isGeneratingNotes: false, notes: enhancedDescription }
+              : row
+          )
+        );
+        return;
+      }
+
+      // Step 3: Fallback to AI-assisted generation with change summary
       const changeSummary: PoleChangeSummary = summarizePoleChanges(pole);
       const actionSentences = buildSentences(changeSummary);
 
-      // Step 2: Construct system and user prompts per new roadmap
-      const systemPrompt = `You are an AI coversheet-note writer.  
+      // Step 4: Construct system and user prompts per new roadmap
+      const systemPrompt = `You are an AI coversheet-note writer for utility pole work descriptions.  
 Follow these examples exactly:  
 - "Lower comm to resolve power clearance violation. Install Charter Fiber. Proposed down guy added."  
-- "Install Charter Fiber and riser. Bore underground to Southeast service location. Stub pole removal needed."  
-Write 1–4 short sentences, present tense imperative, one action per sentence.`;
+- "Install Charter Fiber and riser. Bore underground to Southeast service location. Stub pole removal needed."
+- "Replace pole to resolve structural/clearance violations. Install Charter Fiber."
+- "Raise comms to resolve ground clearance violations. Install Charter Fiber and splice onto existing attachment."  
+Write 1–4 short sentences, present tense imperative, one action per sentence. Focus on technical accuracy.`;
 
-      const userPrompt = `Pole: ${changeSummary.poleId}\nActions:\n${actionSentences.join('\n')}`;
+      const userPrompt = `Pole: ${changeSummary.poleId}\nRequired Actions:\n${actionSentences.join('\n')}`;
 
       const finalPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
@@ -373,8 +638,8 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
         notes = await aiService.generateAnalysis(finalPrompt, 'coversheet-notes');
       } catch (error) {
         console.warn('AI generation failed, using rule-based fallback:', error);
-        // Simple fallback: join action sentences
-        notes = actionSentences.join(' ');
+        // Use the enhanced description as fallback
+        notes = enhancedDescription;
       }
 
       // Step 5: Update with generated notes
@@ -388,10 +653,12 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
 
     } catch (error) {
       console.error('Error generating notes for pole:', poleId, error);
+      // Final fallback to enhanced description
+      const enhancedDescription = generateEnhancedWorkDescription(pole);
       setCoverSheetData(prev => 
         prev.map((row, index) => 
           index === poleIndex 
-            ? { ...row, isGeneratingNotes: false, notes: 'Error generating notes' }
+            ? { ...row, isGeneratingNotes: false, notes: enhancedDescription || 'Error generating notes' }
             : row
         )
       );
@@ -419,13 +686,15 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
       const changeSummary: PoleChangeSummary = summarizePoleChanges(pole);
       const actionSentences = buildSentences(changeSummary);
 
-      const systemPrompt = `You are an AI coversheet-note writer.  
-Follow these examples exactly:  
+      const systemPrompt = `You are an AI coversheet-note writer for utility pole work descriptions.  
+Follow these examples exactly but provide slight variations in wording:  
 - "Lower comm to resolve power clearance violation. Install Charter Fiber. Proposed down guy added."  
-- "Install Charter Fiber and riser. Bore underground to Southeast service location. Stub pole removal needed."  
-Write 1–4 short sentences, present tense imperative, one action per sentence.`;
+- "Install Charter Fiber and riser. Bore underground to Southeast service location. Stub pole removal needed."
+- "Replace pole to resolve structural/clearance violations. Install Charter Fiber."
+- "Raise comms to resolve ground clearance violations. Install Charter Fiber and splice onto existing attachment."  
+Write 1–4 short sentences, present tense imperative, one action per sentence. Provide variation while maintaining technical accuracy.`;
 
-      const userPrompt = `Pole: ${changeSummary.poleId}\nActions:\n${actionSentences.join('\n')}`;
+      const userPrompt = `Pole: ${changeSummary.poleId}\nRequired Actions:\n${actionSentences.join('\n')}`;
 
       const finalPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
@@ -433,8 +702,9 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
       try {
         notes = await aiService.generateAnalysis(finalPrompt, 'coversheet-notes-regen');
       } catch (error) {
-        console.warn('AI regeneration failed, using fallback:', error);
-        notes = actionSentences.join(' ');
+        console.warn('AI regeneration failed, using enhanced fallback:', error);
+        // Use enhanced description as fallback
+        notes = generateEnhancedWorkDescription(pole);
       }
 
       setCoverSheetData(prev => 
@@ -447,10 +717,12 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
 
     } catch (error) {
       console.error('Error regenerating notes for pole:', poleId, error);
+      // Final fallback to enhanced description
+      const enhancedDescription = generateEnhancedWorkDescription(pole);
       setCoverSheetData(prev => 
         prev.map((row, index) => 
           index === poleIndex 
-            ? { ...row, isGeneratingNotes: false, notes: 'Error regenerating notes' }
+            ? { ...row, isGeneratingNotes: false, notes: enhancedDescription || 'Error regenerating notes' }
             : row
         )
       );
@@ -586,6 +858,13 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
           </div>
         </div>
       </div>
+
+      {/* Results Card */}
+      <ResultsCard 
+        spidaFileName={spidaFileName}
+        poleCount={data.length}
+        locationInfo={locationInfo}
+      />
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
@@ -771,4 +1050,4 @@ Write 1–4 short sentences, present tense imperative, one action per sentence.`
       </div>
     </div>
   );
-}; 
+};

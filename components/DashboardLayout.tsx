@@ -380,7 +380,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
             {activeTab === 'coversheet' && (
               <div className="content-container">
-                <CoverSheetTable data={poleData || []} />
+                <CoverSheetTable data={poleData || []} spidaFileName={spidaFileName} />
               </div>
             )}
 
